@@ -26,38 +26,191 @@ std::string formatWithComma(double value)
 
 namespace Log
 {
-    void saveTotalSFRCurve(std::vector<Particle*> particles, const double time)
+    void avg_sfr(std::vector<Particle*> particles, const double time)
     {
         double totalSFR = 0;
+        double n = 0;
         for (size_t i = 0; i < particles.size(); i++)
         {
-            if(particles[i]->type == 2) totalSFR += particles[i]->sfr;
+            if(particles[i]->type == 2) 
+            {
+                totalSFR += particles[i]->sfr;
+                n++;
+            }
         }
-        Log::printData("totalSFR.csv", time, totalSFR);
+        Log::printData("total_SFR.csv", time, totalSFR);
+        totalSFR /= n;
+        Log::printData("avg_SFR.csv", time, totalSFR);
     }
-    void saveMassCurve(std::vector<Particle*> particles, const double time)
+    void total_Mass(std::vector<Particle*> particles, const double time)
     {
         double gasMass = 0;
         double starMass = 0;
         for (size_t i = 0; i < particles.size(); i++)
         {
-            if(particles[i]->type == 2) gasMass += particles[i]->mass;
+            if(particles[i]->type == 2) 
+            {
+                gasMass += particles[i]->mass;
+            }
             if(particles[i]->type == 1) starMass += particles[i]->mass;
         }
         Log::printData("gasMass.csv", time, gasMass);
         Log::printData("starMass.csv", time, starMass);
     }
-    void saveTotalTempCurve(std::vector<Particle*> particles, const double time)
+    void avg_U(std::vector<Particle*> particles, const double time)
     {
-        double totalTemp = 0;
+        double totalU = 0;
+        double n = 0;
         for (size_t i = 0; i < particles.size(); i++)
         {
-            if(particles[i]->type == 2) totalTemp += particles[i]->T;
+            if(particles[i]->type == 2 && particles[i]->U > 0 && particles[i]->U < 1e11) 
+            {
+                totalU += particles[i]->U;
+                n++;
+            }
         }
-        Log::printData("totalTemp.csv", time, totalTemp);
-
+        Log::printData("total_U.csv", time, totalU);
+        totalU /= n;
+        Log::printData("avg_U.csv", time, totalU);
     }
-    void saveVelocityCurve(std::vector<Particle*> particles, int numberOfParticles)
+
+    void avg_R_sfr(std::vector<Particle*> particles, int numberOfParticles)
+    {
+        std::cout << "Saving sfr curve..." << std::endl;
+        std::vector<Particle> ps;
+        for (int i = 0; i < numberOfParticles; i ++)
+        {
+            if(particles[i]->type != 2) continue;
+            if(!particles[i]) continue;
+            Particle p;
+            p.position = particles[i]->position;
+            p.sfr = particles[i]->sfr;
+            ps.push_back(p);
+        }
+        //get the velocity of the particles
+        struct data
+        {
+            double r;
+            double sfr;
+            double i;
+        };
+
+        std::vector<data> v;
+        for (size_t i = 0; i < ps.size(); i++) {
+            data d;
+            d.r = ps[i].position.length() / Units::KPC;
+            d.sfr = ps[i].sfr;
+            d.i = i;
+            v.push_back(d);
+        }
+
+        // Sortiere die Daten nach Abstand
+        std::sort(v.begin(), v.end(), [](const data& a, const data& b) {
+            return a.r < b.r;
+        });
+
+        // Teile die Daten in Bins auf
+        double r_abstand = v.back().r / 100;
+        std::vector<std::vector<double>> bins(100);
+
+        for (const auto& elem : v) {
+            int bin_index = static_cast<int>(elem.r / r_abstand);
+            if (bin_index >= 100) bin_index = 99; // Sicherstellen, dass der Index im gültigen Bereich bleibt
+            bins[bin_index].push_back(elem.sfr);
+        }
+
+        // Berechne den Median der Geschwindigkeiten für jeden Bin
+        std::vector<double> medians(100);
+        for (size_t i = 0; i < bins.size(); i++) {
+            if (bins[i].empty()) {
+                medians[i] = 0; // oder einen anderen repräsentativen Wert für leere Bins
+                continue;
+            }
+            size_t mid = bins[i].size() / 2;
+            std::nth_element(bins[i].begin(), bins[i].begin() + mid, bins[i].end());
+            double median = bins[i][mid];
+            if (bins[i].size() % 2 == 0) {
+                std::nth_element(bins[i].begin(), bins[i].begin() + mid - 1, bins[i].end());
+                median = (median + bins[i][mid - 1]) / 2.0;
+            }
+            medians[i] = median;
+        }
+        //print the velocity of the particles
+        for (size_t i = 0; i < medians.size(); i++)
+        {
+            Log::printData("sfr_Curve.csv",(i + 1) * r_abstand, medians[i]);
+        }
+    }
+    void avg_R_U(std::vector<Particle*> particles, int numberOfParticles)
+    {
+        std::cout << "Saving U curve..." << std::endl;
+        std::vector<Particle> ps;
+        for (int i = 0; i < numberOfParticles; i ++)
+        {
+            if(particles[i]->type != 2) continue;
+            if(!particles[i]) continue;
+            if(particles[i]->U < 0 || particles[i]->U > 1e11) continue;
+            Particle p;
+            p.position = particles[i]->position;
+            p.U = particles[i]->U;
+            ps.push_back(p);
+        }
+
+        //get the velocity of the particles
+        struct data
+        {
+            double r;
+            double U;
+            double i;
+        };
+
+        std::vector<data> v;
+        for (size_t i = 0; i < ps.size(); i++) {
+            data d;
+            d.r = ps[i].position.length() / Units::KPC;
+            d.U = ps[i].U;
+            d.i = i;
+            v.push_back(d);
+        }
+
+        // Sortiere die Daten nach Abstand
+        std::sort(v.begin(), v.end(), [](const data& a, const data& b) {
+            return a.r < b.r;
+        });
+
+        // Teile die Daten in Bins auf
+        double r_abstand = v.back().r / 100;
+        std::vector<std::vector<double>> bins(100);
+
+        for (const auto& elem : v) {
+            int bin_index = static_cast<int>(elem.r / r_abstand);
+            if (bin_index >= 100) bin_index = 99; // Sicherstellen, dass der Index im gültigen Bereich bleibt
+            bins[bin_index].push_back(elem.U);
+        }
+
+        // Berechne den Median der Geschwindigkeiten für jeden Bin
+        std::vector<double> medians(100);
+        for (size_t i = 0; i < bins.size(); i++) {
+            if (bins[i].empty()) {
+                medians[i] = 0; // oder einen anderen repräsentativen Wert für leere Bins
+                continue;
+            }
+            size_t mid = bins[i].size() / 2;
+            std::nth_element(bins[i].begin(), bins[i].begin() + mid, bins[i].end());
+            double median = bins[i][mid];
+            if (bins[i].size() % 2 == 0) {
+                std::nth_element(bins[i].begin(), bins[i].begin() + mid - 1, bins[i].end());
+                median = (median + bins[i][mid - 1]) / 2.0;
+            }
+            medians[i] = median;
+        }
+        //print the velocity of the particles
+        for (size_t i = 0; i < medians.size(); i++)
+        {
+            Log::printData("U_Curve.csv",(i + 1) * r_abstand, medians[i]);
+        }
+    }
+    void avg_R_vel(std::vector<Particle*> particles, int numberOfParticles)
     {
         std::cout << "Saving velocity curve..." << std::endl;
         std::vector<Particle> ps;

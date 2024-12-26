@@ -10,5 +10,5 @@ public:
     SFR() {}
     ~SFR() {}
 
-    void sfrRoutine(std::shared_ptr<Particle>& particle);
+    void sfrRoutine(Particle* particle);
 };

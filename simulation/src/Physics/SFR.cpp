@@ -4,26 +4,45 @@
 #include <ctime>
 #include <cmath>
 #include "Constants.h"
+#include <random>
 
-const double rho_th = 1e-22; // density threshold in kg/m^3
-const double epsilon = 0.1; // efficiency of star formation
-const double T_th = 1e4; // temperature threshold in K
-
-void SFR::sfrRoutine(std::shared_ptr<Particle>& particle)
+double randomUniform()
 {
-    // Sternentstehungsraten berechnen
-    if (particle->rho > rho_th && particle->T < T_th)
+    static thread_local std::mt19937_64 rng(42); // fixierter Seed nur als Beispiel
+    static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
+    return dist(rng);
+}
+
+void SFR::sfrRoutine(Particle* particle)
+{
+    if (particle->type != 2) return;
+
+    double DensityThreshold = 1.0e-22;
+    double TemperatureThreshold = 1.0e4;
+    double CStar            = 0.1;
+
+    double rho  = particle->rho;   // lokale Gasdichte
+    double mass = particle->mass;  // Masse des Gaspartikels
+
+    if (rho < DensityThreshold)
+        return;
+    
+    if (particle->T > TemperatureThreshold)
+        return;
+
+    double tDyn = std::sqrt(3.0 * M_PI / (16.0 * Constants::G * particle->rho));
+
+    double sfrMass = CStar * (mass / tDyn);
+    particle->sfr = sfrMass;
+
+    double pForm = 1.0 - std::exp(- (sfrMass * particle->timeStep) / mass);
+
+    // Zufallszahl ziehen
+    double r = randomUniform();
+
+    if (r < pForm)
     {
-        double t_star = 1e15;//(1 / epsilon) * std::sqrt( (3* Constants::PI) / (32 * Constants::G * particle->rho) );
-        double p = 1 - exp(-epsilon * particle->timeStep / t_star);
-        double r = ((double) rand()) / RAND_MAX;
-        particle->sfr = p;
-        if (r < p)
-        {
-            //gas -> star
-            particle->type = 1;
-            particle->U = 0.0;
-            //std::cout << "Star formed" << std::endl;
-        }
+        particle->type = 1;
+        particle->U = 0.0;
     }
 }
