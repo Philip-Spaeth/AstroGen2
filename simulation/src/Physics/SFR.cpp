@@ -42,6 +42,7 @@ void SFR::sfrRoutine(Particle* particle)
 
     if (r < pForm)
     {
+        //std::cout << "Star Formation!" << std::endl;
         particle->type = 1;
         particle->U = 0.0;
     }
