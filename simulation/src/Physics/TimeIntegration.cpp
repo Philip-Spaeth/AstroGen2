@@ -32,10 +32,18 @@ void TimeIntegration::Ueuler(Particle* particle, double deltaTime)
         std::cerr << "Error: Particle " << " is not initialized." << std::endl;
         return;
     }
-
-    //std::cout << std::fixed << std::scientific << particle->dUdt  * deltaTime<< std::endl;
-    if(!std::isnan(particle->dUdt))particle->U += particle->dUdt * deltaTime;
-    //std::cout << std::fixed << std::scientific << "  U diff: " << particle->dUdt  * deltaTime / particle->U<< std::endl;
-    //std::cout << std::fixed << std::scientific << "  T: " << particle->T << std::endl;
+    if(std::isnan(particle->dUdt))
+    {
+       return; 
+    }
+    if(std::isnan(particle->U))
+    {
+        return;
+    }
+    if((particle->U + particle->dUdt * deltaTime) < 0)
+    {
+        return;
+    }
+    particle->U += particle->dUdt * deltaTime;
     particle->dUdt = 0;
 }

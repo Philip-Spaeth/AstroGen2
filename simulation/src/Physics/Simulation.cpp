@@ -271,7 +271,6 @@ void Simulation::run()
             }
         }
         
-
         Log::startProcess("build tree");
         Tree* tree = new Tree(this);
         tree->buildTree();
@@ -283,13 +282,6 @@ void Simulation::run()
         
         Log::startProcess("Force Calculation");
         tree->calculateForces();
-        
-        double gasMass = 0;
-        double totalMass = 0;
-
-        //Log::saveTotalSFRCurve(particles, globalTime);
-        //Log::saveMassCurve(particles, globalTime);
-        //Log::saveTotalTempCurve(particles, globalTime);
 
         // Second kick
         Log::startProcess("second kick");
@@ -311,12 +303,12 @@ void Simulation::run()
                     //cooling and star formation
                     if(coolingEnabled)
                     {
-                        //cooling->coolingRoutine(particles[i]);
+                        cooling->coolingRoutine(particles[i]);
                     }
                     if(starFormation)
                     {
                         //calc SFR
-                        //sfr->sfrRoutine(particles[i]);
+                        sfr->sfrRoutine(particles[i]);
                     }
                     
                     if(particles[i]->type == 2)
@@ -335,11 +327,8 @@ void Simulation::run()
                 // Schedule the next integration time for this particle
                 particles[i]->nextIntegrationTime += particles[i]->timeStep;
             }
-            if(particles[i]->type == 2) gasMass += particles[i]->mass;
-            totalMass += particles[i]->mass;
 
         }
-        //if(starFormation) std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
 
         Log::startProcess("delete tree");
         delete tree;
@@ -352,6 +341,29 @@ void Simulation::run()
             dataManager->saveData(particles, static_cast<int>(nextSaveTime / fixedStep), fixedTimeSteps, numParticlesOutput, fixedStep, endTime, globalTime);
             console->printProgress(static_cast<int>(nextSaveTime / fixedStep), fixedTimeSteps, "");
             nextSaveTime += fixedStep;
+            
+            if(starFormation)
+            {
+                double gasMass = 0;
+                double totalMass = 0;
+                for(int i = 0; i < numberOfParticles; i++)
+                {
+                    if(particles[i]->type == 2)
+                    {
+                        gasMass += particles[i]->mass;
+                    }
+                    totalMass += particles[i]->mass;
+                }
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
+            }
+            if(globalTime == fixedStep * 10)
+            {
+                Log::avg_R_sfr(particles, numberOfParticles);
+                Log::avg_R_U(particles, numberOfParticles);
+            }
+            Log::total_Mass(particles, globalTime);
+            Log::avg_sfr(particles, globalTime);
+            Log::avg_U(particles, globalTime);
         }
     }
 

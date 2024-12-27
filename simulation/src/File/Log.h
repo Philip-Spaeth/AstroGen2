@@ -17,7 +17,6 @@ namespace Log
     extern std::string outputDir;
 
 //logs are saved in the output dir /logs
-
     // track process time
     void startProcess(const std::string& processName);
     void endProcess();
@@ -30,9 +29,20 @@ namespace Log
     //save data to in csv file
     void printData(const std::string& file, const double x, const double y);
 
-    void saveVelocityCurve(std::vector<Particle*> particles, int numberOfParticles);
-    void saveTotalSFRCurve(std::vector<Particle*> particles, const double time);
-    void saveMassCurve(std::vector<Particle*> particles, const double time);
-    void saveTotalTempCurve(std::vector<Particle*> particles, const double time);
+    //save velocity for each radius, rotation curve
+    void avg_R_vel(std::vector<Particle*> particles, int numberOfParticles);
+
+    //save SFR for each radius
+    void avg_R_sfr(std::vector<Particle*> particles, int numberOfParticles);
+    //save avrage SFR for the whole system
+    void avg_sfr(std::vector<Particle*> particles, const double time);
+    
+    //save total mass for the whole system
+    void total_Mass(std::vector<Particle*> particles, const double time);
+    
+    //save U for each radius
+    void avg_R_U(std::vector<Particle*> particles, int numberOfParticles);
+    //save avrage U for the whole system
+    void avg_U(std::vector<Particle*> particles, const double time);
 }
 #endif

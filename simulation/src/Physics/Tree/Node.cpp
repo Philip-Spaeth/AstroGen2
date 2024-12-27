@@ -417,7 +417,7 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
         return;
     }
 
-    if(particles.size() < cores*100)
+    if((int)particles.size() < cores*100)
     {
         for (size_t i = 0; i < particles.size(); i++)
         {
