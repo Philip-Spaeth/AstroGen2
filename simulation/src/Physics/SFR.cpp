@@ -6,44 +6,41 @@
 #include "Constants.h"
 #include <random>
 
-double randomUniform()
+double randomUniform() 
 {
-    static thread_local std::mt19937_64 rng(42); // fixierter Seed nur als Beispiel
-    static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
-    return dist(rng);
+    return static_cast<double>(rand()) / RAND_MAX;
 }
 
 void SFR::sfrRoutine(Particle* particle)
 {
-    if (particle->type != 2) return;
+    if(!particle) return;
+    if(particle->rho <= 0) return;
+    if(particle->U <= 0) return;
+    if(particle->mass <= 0) return;
 
-    double DensityThreshold = 1.0e-22;
-    double TemperatureThreshold = 1.0e4;
-    double CStar            = 0.1;
+    //density threshold in SI units
+    double densityThreshold = 1e-22;
+    //temperature threshold in SI units
+    double temperatureThreshold = 1e4;
 
-    double rho  = particle->rho;   // lokale Gasdichte
-    double mass = particle->mass;  // Masse des Gaspartikels
+    if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
-    if (rho < DensityThreshold)
-        return;
-    
-    if (particle->T > TemperatureThreshold)
-        return;
+    double c = 0.01;
+    double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
 
-    double tDyn = std::sqrt(3.0 * M_PI / (16.0 * Constants::G * particle->rho));
+    double sfr = c * particle->rho / tdyn;
+    double Vpart = particle->mass / particle->rho;
+    particle->sfr = ((sfr * Vpart) / 1.98847e30) * 3.154e7; // in solar masses per year
+    totalSFR += particle->sfr;
+    double dstarMass = sfr * particle->timeStep * Vpart;
+    double P = dstarMass / particle->mass;
 
-    double sfrMass = CStar * (mass / tDyn);
-    particle->sfr = sfrMass;
-
-    double pForm = 1.0 - std::exp(- (sfrMass * particle->timeStep) / mass);
-
-    // Zufallszahl ziehen
-    double r = randomUniform();
-
-    if (r < pForm)
+    if (randomUniform() < P)
     {
-        //std::cout << "Star Formation!" << std::endl;
         particle->type = 1;
-        particle->U = 0.0;
+        particle->U = 0;
+        particle->dUdt = 0;
+        particle->T = 0;
+        //std::cout << "Star formation at particle " << particle->id << std::endl;
     }
 }

@@ -26,7 +26,7 @@ std::string formatWithComma(double value)
 
 namespace Log
 {
-    void avg_sfr(std::vector<Particle*> particles, const double time)
+    void sfr(std::vector<Particle*> particles, const double time)
     {
         double totalSFR = 0;
         double n = 0;

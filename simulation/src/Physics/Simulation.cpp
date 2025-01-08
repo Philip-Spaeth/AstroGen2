@@ -285,6 +285,7 @@ void Simulation::run()
 
         // Second kick
         Log::startProcess("second kick");
+        sfr->totalSFR = 0;
         #pragma omp parallel for
         for (int i = 0; i < numberOfParticles; i++)
         {
@@ -329,6 +330,7 @@ void Simulation::run()
             }
 
         }
+        std::cout << "SFR: " << sfr->totalSFR << std::endl;
 
         Log::startProcess("delete tree");
         delete tree;
@@ -362,7 +364,7 @@ void Simulation::run()
                 Log::avg_R_U(particles, numberOfParticles);
             }
             Log::total_Mass(particles, globalTime);
-            Log::avg_sfr(particles, globalTime);
+            Log::sfr(particles, globalTime);
             Log::avg_U(particles, globalTime);
         }
     }

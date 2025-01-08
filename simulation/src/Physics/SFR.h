@@ -10,5 +10,7 @@ public:
     SFR() {}
     ~SFR() {}
 
+    double totalSFR = 0;
+
     void sfrRoutine(Particle* particle);
 };
