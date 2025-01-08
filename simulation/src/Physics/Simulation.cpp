@@ -21,6 +21,39 @@ Simulation::Simulation()
 }
 
 Simulation::~Simulation() {}
+void rotateSystemAroundX_180(std::vector<Particle*>& particles)
+{
+    // Wir wissen bereits: cos(pi) = -1, sin(pi) = 0.
+    // Du könntest sie aber auch aus std::cos(std::pi) berechnen.
+    double cosA = -0.5;
+    double sinA = 0.0;
+
+    for (Particle* p : particles) {
+        // --- Position ---
+        double x = p->position.x;
+        double y = p->position.y;
+        double z = p->position.z;
+
+        double yNew = y * cosA - z * sinA; // = y * -1.0 = -y
+        double zNew = y * sinA + z * cosA; // = z * -1.0 = -z
+
+        p->position.x = x;     // x bleibt
+        p->position.y = yNew;  // -y
+        p->position.z = zNew;  // -z
+
+        // --- Geschwindigkeit ---
+        double vx = p->velocity.x;
+        double vy = p->velocity.y;
+        double vz = p->velocity.z;
+
+        double vyNew = vy * cosA - vz * sinA; // = -vy
+        double vzNew = vy * sinA + vz * cosA; // = -vz
+
+        p->velocity.x = vx;    // vx bleibt
+        p->velocity.y = vyNew; // -vy
+        p->velocity.z = vzNew; // -vz
+    }
+}
 
 bool Simulation::init()
 {
@@ -54,14 +87,16 @@ bool Simulation::init()
     
     //Log::startProcess("load IC")
     dataManager->loadICs(particles, this);
-/*
-    std::vector<std::shared_ptr<Particle>> andromedaParticles;
+/*   dataManager->inputPath = "50k_Andromeda.gal";
+    std::vector<Particle*> andromedaParticles;
     dataManager->loadICs(andromedaParticles, this);
-    std::vector<std::shared_ptr<Particle>> milkyWayParticles;
+    dataManager->inputPath = "50k_Milchstraße.gal";
+    std::vector<Particle*> milkyWayParticles;
     dataManager->loadICs(milkyWayParticles, this);
-    double angleX = 0.9;
-    double angleY = 2.2;
-    double angleZ = -1.14;
+
+    double angleX = 0.0;                  // kein kippeln um X
+    double angleY = 77.0 * (M_PI / 180.0);   // ~77° - Inklination
+    double angleZ = 40.0 * (M_PI / 180.0);   // ~40° - Positionswinkel
 
     double cosX = cos(angleX), sinX = sin(angleX);
     double cosY = cos(angleY), sinY = sin(angleY);
@@ -78,16 +113,20 @@ bool Simulation::init()
         double y3 = x2 * sinZ + y1 * cosZ;
 
         andromedaParticles[i]->position = vec3(x3, y3, z2);
-        andromedaParticles[i]->position += vec3(0.2 * Units::MPC, 0.1 * Units::MPC, 0.0);
-        andromedaParticles[i]->velocity += vec3(- 1000 * Units::KMS, - 500 * Units::KMS, 0.0);
+        andromedaParticles[i]->position += vec3(2.5e22, 0, 0);
+        andromedaParticles[i]->velocity += vec3(-117000,0,0);
         particles.push_back(andromedaParticles[i]);
     }
+    
     for (int i = 0; i < (int)milkyWayParticles.size(); i++)
     {
         particles.push_back(milkyWayParticles[i]);
     }
+
+    rotateSystemAroundX_180(particles);
     dataManager->saveData(particles, 0, fixedTimeSteps, numParticlesOutput, fixedStep, endTime, 0.0);
-*/
+    return false;
+    */
     //numberOfParticles = particles.size();
     if((size_t)numberOfParticles != particles.size())
     {

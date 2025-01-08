@@ -19,7 +19,7 @@ void SFR::sfrRoutine(Particle* particle)
     if(particle->mass <= 0) return;
 
     //density threshold in SI units
-    double densityThreshold = 1e-22;
+    double densityThreshold = 1e-23;
     //temperature threshold in SI units
     double temperatureThreshold = 1e4;
 
