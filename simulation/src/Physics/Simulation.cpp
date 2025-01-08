@@ -21,39 +21,40 @@ Simulation::Simulation()
 }
 
 Simulation::~Simulation() {}
-void rotateSystemAroundX_180(std::vector<Particle*>& particles)
+void rotateSystemAroundX_90(std::vector<Particle*>& particles)
 {
-    // Wir wissen bereits: cos(pi) = -1, sin(pi) = 0.
-    // Du könntest sie aber auch aus std::cos(std::pi) berechnen.
-    double cosA = -0.5;
-    double sinA = 0.0;
+    // +90°: cos(+90°)=0, sin(+90°)=+1
+    double cosA =  0.0;
+    double sinA = +1.0;
 
-    for (Particle* p : particles) {
+    for (Particle* p : particles)
+    {
         // --- Position ---
         double x = p->position.x;
         double y = p->position.y;
         double z = p->position.z;
 
-        double yNew = y * cosA - z * sinA; // = y * -1.0 = -y
-        double zNew = y * sinA + z * cosA; // = z * -1.0 = -z
+        double yNew = y * cosA - z * sinA; // = -z
+        double zNew = y * sinA + z * cosA; // = y
 
-        p->position.x = x;     // x bleibt
-        p->position.y = yNew;  // -y
-        p->position.z = zNew;  // -z
+        p->position.x = x;
+        p->position.y = yNew;
+        p->position.z = zNew;
 
         // --- Geschwindigkeit ---
         double vx = p->velocity.x;
         double vy = p->velocity.y;
         double vz = p->velocity.z;
 
-        double vyNew = vy * cosA - vz * sinA; // = -vy
-        double vzNew = vy * sinA + vz * cosA; // = -vz
+        double vyNew = vy * cosA - vz * sinA; // = -vz
+        double vzNew = vy * sinA + vz * cosA; // = vy
 
-        p->velocity.x = vx;    // vx bleibt
-        p->velocity.y = vyNew; // -vy
-        p->velocity.z = vzNew; // -vz
+        p->velocity.x = vx;
+        p->velocity.y = vyNew;
+        p->velocity.z = vzNew;
     }
 }
+
 
 bool Simulation::init()
 {
@@ -85,12 +86,12 @@ bool Simulation::init()
     //print the computers / server computational parameters like number of threads, ram, cpu, etc.
     Console::printSystemInfo();
     
-    //Log::startProcess("load IC")
+    Log::startProcess("load IC");
     dataManager->loadICs(particles, this);
-/*   dataManager->inputPath = "50k_Andromeda.gal";
+    /*dataManager->inputPath = "500k_Andromeda.gal";
     std::vector<Particle*> andromedaParticles;
     dataManager->loadICs(andromedaParticles, this);
-    dataManager->inputPath = "50k_Milchstraße.gal";
+    dataManager->inputPath = "500k_Milchstraße.gal";
     std::vector<Particle*> milkyWayParticles;
     dataManager->loadICs(milkyWayParticles, this);
 
@@ -111,10 +112,19 @@ bool Simulation::init()
         double z2 = -pos.x * sinY + z1 * cosY;
         double x3 = x2 * cosZ - y1 * sinZ;
         double y3 = x2 * sinZ + y1 * cosZ;
-
         andromedaParticles[i]->position = vec3(x3, y3, z2);
-        andromedaParticles[i]->position += vec3(2.5e22, 0, 0);
-        andromedaParticles[i]->velocity += vec3(-117000,0,0);
+        vec3 vel = andromedaParticles[i]->velocity;
+        double vy1 = vel.y * cosX - vel.z * sinX;
+        double vz1 = vel.y * sinX + vel.z * cosX;
+        double vx2 = vel.x * cosY + vz1 * sinY;
+        double vz2 = -vel.x * sinY + vz1 * cosY;
+        double vx3 = vx2 * cosZ - vy1 * sinZ;
+        double vy3 = vx2 * sinZ + vy1 * cosZ;
+
+        andromedaParticles[i]->velocity = vec3(vx3, vy3, vz2);
+        // 2.5e22m , -117000m/s, 1e22m,  time = 3091489847 years , -232643m/s
+        andromedaParticles[i]->position += vec3(1e22, 0, 0);
+        andromedaParticles[i]->velocity += vec3(-232643,0,0);
         particles.push_back(andromedaParticles[i]);
     }
     
@@ -123,10 +133,10 @@ bool Simulation::init()
         particles.push_back(milkyWayParticles[i]);
     }
 
-    rotateSystemAroundX_180(particles);
+    rotateSystemAroundX_90(particles);
     dataManager->saveData(particles, 0, fixedTimeSteps, numParticlesOutput, fixedStep, endTime, 0.0);
-    return false;
-    */
+    return false;*/
+    
     //numberOfParticles = particles.size();
     if((size_t)numberOfParticles != particles.size())
     {
