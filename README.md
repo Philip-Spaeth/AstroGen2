@@ -1,4 +1,4 @@
-# AstroGen2
+# AstroGen 2.0
 
 Welcome to AstroGen 2.0, a modern n-body simulation software designed to model the dynamics of galaxies and clusters. Developed in C++, AstroGen2 leverages optimized algorithms and data structures to deliver highly accurate simulations of cosmic phenomena.
 
