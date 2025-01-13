@@ -40,6 +40,7 @@ void SFR::sfrRoutine(Particle* particle)
         particle->type = 1;
         particle->U = 0;
         particle->dUdt = 0;
+        particle->sfr = 0;
         particle->T = 0;
         //std::cout << "Star formation at particle " << particle->id << std::endl;
     }
