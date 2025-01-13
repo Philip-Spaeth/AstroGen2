@@ -1,0 +1,5 @@
+# Force GitHub to recognize certain file types as C++
+*.cpp linguist-language=C++
+*.h linguist-language=C++
+*.hpp linguist-language=C++
+*.html linguist-language=C++

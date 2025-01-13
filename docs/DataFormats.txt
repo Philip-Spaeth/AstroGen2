@@ -1,0 +1,64 @@
+Data Formats in AstroGenesis N-Body Simulation
+
+This document describes the data formats used for storing particle information in the AstroGenesis N-Body Simulation, along with memory usage details for each format.
+
+Supported Data Formats:
+
+1. AGF (AstroGenesis Format)
+   The AGF format is a custom binary format designed for efficient storage of particle data in the simulation.
+   Stored Information:
+     - Position (vec3): 3 doubles (24 bytes)
+     - Velocity (vec3): 3 doubles (24 bytes)
+     - Mass (double): 8 bytes
+     - Temperature (double): 8 bytes
+     - Visual Density (double): 8 bytes
+     - Particle Type (int): 4 bytes
+   Memory Size: 78,824 bytes per 1000 particles (~78.8 KB)
+   Usage: This format is used for full particle data including position, velocity, mass, temperature, visual density, and type. Ideal for general simulation data storage.
+
+2. AGFC (AstroGenesis Format Compact)
+   The AGFC format is a more compact version of the AGF format, focusing on fewer properties for quicker access and rendering purposes.
+   Stored Information:
+     - Position (vec3): 3 floats (12 bytes)
+     - Visual Density (float): 4 bytes
+     - Particle Type (int): 4 bytes
+   Memory Size: 20,480 bytes per 1000 particles (~20.5 KB)
+   Usage: This format is designed for visualizations or quick access to the most essential data (position, density, type), typically used when detailed simulation data is not required.
+
+3. AGFE (AstroGenesis Format Extended)
+   The AGFE format extends the AGF format with additional properties to provide a more complete dataset for analysis.
+   Stored Information:
+     - Position (vec3): 3 doubles (24 bytes)
+     - Velocity (vec3): 3 doubles (24 bytes)
+     - Mass (double): 8 bytes
+     - Temperature (double): 8 bytes
+     - Pressure (double): 8 bytes
+     - Visual Density (double): 8 bytes
+     - Internal Energy (double): 8 bytes
+     - Particle Type (int): 4 bytes
+   Memory Size: 94,208 bytes per 1000 particles (~94.2 KB)
+   Usage: This extended format is used for more detailed simulations where properties like pressure, internal energy, and temperature are important for physics-based analysis and modeling.
+
+4. AGFH (AstroGenesis Format HDF5)
+   The AGFH format uses the HDF5 file format to store particle data, providing efficient data storage and access for large-scale simulations.
+   Stored Information:
+     - Position (vec3): 3 floats (12 bytes)
+     - Velocity (vec3): 3 floats (12 bytes)
+     - Mass (double): 8 bytes
+     - Temperature (double): 8 bytes
+     - Visual Density (float): 4 bytes
+     - Particle Type (int): 4 bytes
+   Memory Size: 20,640 bytes per 1000 particles (~20.6 KB)
+   Usage: This format leverages HDF5's advantages for storing large datasets efficiently, especially in scenarios where data scaling and fast access are critical. It is used in high-performance computing environments.
+
+Summary of Memory Sizes per Particle:
+- AGF: 78.8 bytes
+- AGFC: 20.4 bytes
+- AGFE: 94.2 bytes
+- AGFH: 20.6 bytes
+
+Choosing the Right Format:
+- AGF: Use for complete simulation data storage where all particle properties are necessary.
+- AGFC: Use for rendering and visualization, where only essential properties (position, density, type) are required.
+- AGFE: Use for detailed simulation analysis, where additional properties like pressure and internal energy are needed.
+- AGFH: Use for large-scale simulations in high-performance computing scenarios, leveraging HDF5 for efficient data access and storage.
