@@ -21,8 +21,10 @@ See /docs folder for the Users-guide, code paper and information about Dataforma
 Example use case: The simulation of the merger of the Andromeda and Milky Way galaxies: 
 
 
-or the Bullet Cluster, where the effects of artificial viscosity are visible:
+https://github.com/user-attachments/assets/9a663e54-c515-41ce-b894-b10e3e4b0cba
 
+
+or the Bullet Cluster, where the effects of artificial viscosity are visible:
 
 
 https://github.com/user-attachments/assets/8ea435ff-cb36-4c9a-ab29-7bb9230dbc22
