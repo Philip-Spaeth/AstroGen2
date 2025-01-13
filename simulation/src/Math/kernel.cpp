@@ -19,7 +19,7 @@ vec3 kernel::gradientCubicSplineKernel(const vec3& r, double h)
 {
     double r_norm = r.length();
     if (r_norm == 0.0) {
-        return vec3(0.0, 0.0, 0.0); // Handle zero division gracefully
+        return vec3(0.0, 0.0, 0.0);
     }
     const double alpha_3d = 1.0 / (Constants::PI * h * h * h);
     double q = r_norm / h;
@@ -33,9 +33,8 @@ vec3 kernel::gradientCubicSplineKernel(const vec3& r, double h)
         return vec3(0.0, 0.0, 0.0);
     }
 
-    // Compute the vector gradient
-    gradient_scalar /= h; // Adjust gradient by 1/h due to chain rule
-    return r * (gradient_scalar / r_norm); // Normalize r and scale by gradient
+    gradient_scalar /= h;
+    return r * (gradient_scalar / r_norm);
 }
 
 double kernel::softeningKernel(double u)

@@ -49,7 +49,6 @@ struct io_header_1 {
     char fill[256 - 6 * 4 - 6 * 8 - 2 * 8 - 2 * 4 - 6 * 4 - 2 * 4 - 4 * 8];
 };
 
-// Blockgröße prüfen
 void checkBlockSize(std::ifstream &file, const std::string &context) {
     int32_t blockSize;
     file.read(reinterpret_cast<char*>(&blockSize), sizeof(blockSize));
@@ -64,7 +63,6 @@ enum iofields {
     IO_POS, IO_VEL, IO_ID, IO_MASS, IO_U, IO_RHO, IO_NE, IO_NH, IO_HSML, IO_SFR, IO_AGE, IO_LASTENTRY
 };
 
-// Hilfsfunktionen
 std::string getBlockLabel(iofields block) {
     switch (block) {
         case IO_POS: return "Position";
@@ -91,7 +89,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         particles.resize(numberOfParticles);
     }
 
-    // Sicherstellen, dass der Pfad existiert
     if (!fs::exists(this->outputPath))
     {
         fs::create_directories(this->outputPath);
@@ -109,7 +106,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         return;
     }
 
-    // Dateiname basierend auf dem Zeitschritt
     std::string filename = this->outputPath + std::to_string(timeStep) + ending;
     std::ofstream file(filename, std::ios::out | std::ios::binary);
     if (!file.is_open()) {
@@ -188,7 +184,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
 
         for (const auto& particle : particles)
         {
-            // Position als float konvertieren
             float posX = static_cast<float>(particle->position.x);
             float posY = static_cast<float>(particle->position.y);
             float posZ = static_cast<float>(particle->position.z);
@@ -203,14 +198,11 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
             float T = static_cast<float>(particle->T);
             memcpy(ptr, &T, sizeof(float)); ptr += sizeof(float);
 
-            // type als int speichern
             uint8_t type = particle->type;
             memcpy(ptr, &type, sizeof(uint8_t)); ptr += sizeof(uint8_t);
             uint8_t galaxyPart = particle->galaxyPart;
             memcpy(ptr, &galaxyPart, sizeof(uint8_t)); ptr += sizeof(uint8_t);
         }
-
-        // Puffer in die Datei schreiben
         file.write(buffer.data(), totalSize);
     }
     else if (outputFormat == "age")
@@ -236,7 +228,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         age_MemorySize =  particles.size() * (sizeof(vec3) * 2 + sizeof(double) * 5 + sizeof(uint8_t) * 2 + sizeof(uint32_t));
         size_t totalSize = age_MemorySize;
         
-        // Speicher für den Puffer allokieren
         char* buffer = reinterpret_cast<char*>(malloc(totalSize));
         if (buffer) {
             char* ptr = buffer;
@@ -266,7 +257,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         gadget2Header header;
         memset(&header, 0, sizeof(header)); // Zero-initialize the header
 
-        // Listen zur Organisation der Partikel nach Gadget-Typ
         std::vector<Particle*> gas_particles;
         std::vector<Particle*> halo_particles;
         std::vector<Particle*> disk_particles;
@@ -329,7 +319,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         file.write(reinterpret_cast<char*>(&header), sizeof(header));
         file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-        // Funktion zur Datenvorbereitung (Position, Geschwindigkeit)
         auto prepareData = [](const std::vector<Particle*>& particles, std::vector<float>& data, float unit) {
             data.resize(particles.size() * 3);
             for (size_t i = 0; i < particles.size(); i++) {
@@ -339,7 +328,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
             }
         };
 
-        // Positionen in der Reihenfolge Gas, Halo, Disk, Bulge vorbereiten und schreiben
         std::vector<float> positions;
         prepareData(gas_particles, positions, Units::KPC);
         std::vector<float> halo_positions;
@@ -358,7 +346,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         file.write(reinterpret_cast<char*>(positions.data()), block_size);
         file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-        // Geschwindigkeiten in der Reihenfolge Gas, Halo, Disk, Bulge vorbereiten und schreiben
         std::vector<float> velocities;
         prepareData(gas_particles, velocities, Units::KMS);
         std::vector<float> halo_velocities;
@@ -377,7 +364,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         file.write(reinterpret_cast<char*>(velocities.data()), block_size);
         file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-        // IDs in der Reihenfolge Gas, Halo, Disk, Bulge vorbereiten und schreiben
         std::vector<unsigned int> ids;
         for (const auto& particle : gas_particles) ids.push_back(particle->id);
         for (const auto& particle : halo_particles) ids.push_back(particle->id);
@@ -389,7 +375,6 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         file.write(reinterpret_cast<char*>(ids.data()), block_size);
         file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-        // Massen in der Reihenfolge Gas, Halo, Disk, Bulge vorbereiten und schreiben
         std::vector<float> masses;
         for (const auto& particle : gas_particles) masses.push_back(static_cast<float>(particle->mass / (Units::MSUN * 1e10)));
         for (const auto& particle : halo_particles) masses.push_back(static_cast<float>(particle->mass / (Units::MSUN * 1e10)));
@@ -401,11 +386,10 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
         file.write(reinterpret_cast<char*>(masses.data()), block_size);
         file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-        // U-Werte (interne Energie) nur für Gaspartikel schreiben
         if (!gas_particles.empty()) {
             std::vector<float> u_values;
             for (const auto& particle : gas_particles) {
-                u_values.push_back(static_cast<float>(particle->U / 1e6)); // U in Code-Einheiten konvertieren
+                u_values.push_back(static_cast<float>(particle->U / 1e6));
             }
             block_size = u_values.size() * sizeof(float);
             file.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
@@ -433,7 +417,6 @@ struct ptc {
 
 bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 {
-    // Öffne die Datei im Binärmodus
     std::ifstream file("../../input_data/" + inputPath, std::ios::binary);
     
     if (!file) {
@@ -446,7 +429,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     if(inputFormat == "ag")
     {
         std::cout << "reading ag initial condition data ..." << std::endl;
-        // Header auslesen
         AGFHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         if (!file) {
@@ -454,15 +436,12 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             return false;
         }
 
-        // Anzahl der Partikel berechnen
         unsigned int total_particles = header.numParticles[0] + header.numParticles[1] + header.numParticles[2];
 
         sim->numberOfParticles = total_particles;
         
-        // Speicherplatz für Partikel reservieren
         particles.reserve(total_particles);
 
-        // Partikel auslesen
         for (unsigned int i = 0; i < total_particles; ++i)
         {
             Particle* particle = new Particle();
@@ -484,7 +463,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     else if (inputFormat == "agc")
     {
         std::cout << "reading agc initial condition data ..." << std::endl;
-        // Header auslesen
         AGFHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         if (!file) {
@@ -492,15 +470,12 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             return false;
         }
 
-        // Anzahl der Partikel berechnen
         unsigned int total_particles = header.numParticles[0] + header.numParticles[1] + header.numParticles[2];
 
         sim->numberOfParticles = total_particles;
         
-        // Speicherplatz für Partikel reservieren
         particles.reserve(total_particles);
 
-        // Partikel auslesen
         for (unsigned int i = 0; i < total_particles; ++i)
         {
             Particle* particle = new Particle();
@@ -534,7 +509,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     else if (inputFormat == "age")
     {
         std::cout << "reading age initial condition data ..." << std::endl;
-        // Header auslesen
         AGFHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         if (!file) {
@@ -542,15 +516,12 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             return false;
         }
 
-        // Anzahl der Partikel berechnen
         unsigned int total_particles = header.numParticles[0] + header.numParticles[1] + header.numParticles[2];
 
         sim->numberOfParticles = total_particles;
         
-        // Speicherplatz für Partikel reservieren
         particles.reserve(total_particles);
 
-        // Partikel auslesen
         for (unsigned int i = 0; i < total_particles; ++i)
         {
             Particle* particle = new Particle();
@@ -586,7 +557,7 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 
         // Lesen des Block-Headers
         char label[4];
-        file.read(label, 4); // Sollte "HEAD" sein
+        file.read(label, 4);
         int nextblock;
         file.read(reinterpret_cast<char*>(&nextblock), sizeof(nextblock));
 
@@ -605,19 +576,13 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         std::cout << "  Black Hole (Typ 5): " << header.npart[5] << std::endl;
 
 
-        // Gesamtanzahl der Partikel berechnen
         unsigned int total_particles = 0;
         for(int i = 0; i < 6; ++i){
             total_particles += header.npart[i];
         }
 
-        // Reservieren des Speicherplatzes für Partikel
         particles.resize(total_particles);
-
-        // Reservieren des Speicherplatzes für Partikel
         std::vector<ptc> ps(total_particles);
-
-        // Jetzt die Datenblöcke in der gleichen Reihenfolge lesen, wie sie geschrieben wurden
 
         enum iofields { IO_POS, IO_VEL, IO_ID, IO_MASS, IO_U, IO_RHO, IO_HSML, IO_LASTENTRY };
 
@@ -640,32 +605,27 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             if (!block_present)
                 continue;
 
-            // Lesen des Block-Headers
             file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
             file.read(label, 4);
             file.read(reinterpret_cast<char*>(&nextblock), sizeof(nextblock));
             file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
-            // Lesen der Daten
             file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
 
             switch (bnr) {
                 case IO_POS:
-                    // Lesen der Positionen
                     for (unsigned int i = 0; i < total_particles; ++i) {
                         file.read(reinterpret_cast<char*>(ps[i].pos), 3 * sizeof(float));
                     }
                     break;
 
                 case IO_VEL:
-                    // Lesen der Geschwindigkeiten
                     for (unsigned int i = 0; i < total_particles; ++i) {
                         file.read(reinterpret_cast<char*>(ps[i].vel), 3 * sizeof(float));
                     }
                     break;
 
                 case IO_ID:
-                    // Lesen der IDs
                     for (unsigned int i = 0; i < total_particles; ++i) {
                         file.read(reinterpret_cast<char*>(&ps[i].id), sizeof(unsigned int));
                     }
@@ -673,7 +633,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 
                 case IO_MASS:
                     {
-                        // Bestimmen, welche Typen individuelle Massen haben
                         int typelist[6];
                         for (int i = 0; i < 6; ++i) {
                             typelist[i] = 0;
@@ -681,17 +640,14 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
                                 typelist[i] = 1;
                         }
 
-                        // Lesen der Massen
                         unsigned int index = 0;
                         for (int type = 0; type < 6; ++type) {
                             for (int i = 0; i < header.npart[type]; ++i) {
                                 if (typelist[type]) {
-                                    // Individuelle Masse lesen
                                     float mass;
                                     file.read(reinterpret_cast<char*>(&mass), sizeof(float));
                                     ps[index].mass = mass;
                                 } else {
-                                    // Masse aus dem Header verwenden
                                     ps[index].mass = static_cast<float>(header.mass[type]);
                                 }
                                 ++index;
@@ -702,17 +658,14 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 
                 case IO_U:
                     {
-                        // Lesen von U für Gaspartikel (Typ 0)
                         unsigned int index = 0;
                         for (int type = 0; type < 6; ++type) {
                             for (int i = 0; i < header.npart[type]; ++i) {
                                 if (type == 0) {
-                                    // U lesen
                                     float u;
                                     file.read(reinterpret_cast<char*>(&u), sizeof(float));
                                     ps[index].u = u;
                                 } else {
-                                    // U auf 0 setzen für andere Typen
                                     ps[index].u = 0.0f;
                                 }
                                 ++index;
@@ -722,7 +675,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
                     break;
 
                 default:
-                    // Unbekannter Block, überspringen
                     file.seekg(block_size, std::ios::cur);
                     break;
             }
@@ -811,25 +763,20 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     else if(inputFormat == "gadget")
     {
         std::cout << "reading gadget2 snapshot ..." << std::endl;
-        // Gadget2 Header auslesen
         gadget2Header header;
 
-        // Lesen der ersten Blockgröße vor dem Header
         unsigned int block_size_start;
         file.read(reinterpret_cast<char*>(&block_size_start), sizeof(block_size_start));
         if (!file) {
             std::cerr << "Fehler: Konnte die Start-Blockgröße nicht lesen!" << std::endl;
             return false;
         }
-
-        // Lesen des Headers
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         if (!file) {
             std::cerr << "Fehler: Konnte den Header aus der Datei nicht lesen!" << std::endl;
             return false;
         }
 
-        // Lesen der Blockgröße nach dem Header
         unsigned int block_size_end;
         file.read(reinterpret_cast<char*>(&block_size_end), sizeof(block_size_end));
         if (!file) {
@@ -837,13 +784,10 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             return false;
         }
 
-        // Überprüfen, ob die Blockgrößen übereinstimmen
         if (block_size_start != sizeof(header)) {
             std::cerr << "Fehler: Start- und End-Blockgrößen des Headers stimmen nicht überein!" << std::endl;
             return false;
         }
-        
-        // Ausgabe des Headers zur Überprüfung
         std::cout << "Gadget2 Header: " << std::endl;
         std::cout << "   Gas (Typ 0): " << header.npart[0] << std::endl;
         std::cout << "   Halo (Typ 1): " << header.npart[1] << std::endl;
@@ -864,13 +808,11 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         */
         
     
-        // Gesamtanzahl der Partikel berechnen
         unsigned int total_particles = 0;
         for(int i = 0; i < 6; ++i){
             total_particles += header.npart[i];
         }
 
-        // Reservieren des Speicherplatzes für Partikel
         particles.reserve(total_particles);
 
         // ### Lesen des Positionsblocks (POS) ###
@@ -888,7 +830,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         if (pos_block_size_start != expected_pos_block_size) {
             std::cerr << "Warnung: Erwartete POS-Blockgröße (" << expected_pos_block_size 
                     << " bytes) stimmt nicht mit gelesener Größe (" << pos_block_size_start << " bytes) überein." << std::endl;
-            // Optional: Fortfahren oder Abbruch
         }
 
         // Lesen der Positionsdaten
@@ -928,7 +869,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         if (vel_block_size_start != expected_vel_block_size) {
             std::cerr << "Warnung: Erwartete VEL-Blockgröße (" << expected_vel_block_size 
                     << " bytes) stimmt nicht mit gelesener Größe (" << vel_block_size_start << " bytes) überein." << std::endl;
-            // Optional: Fortfahren oder Abbruch
         }
 
         // Lesen der Geschwindigkeitsdaten
@@ -968,7 +908,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         if (id_block_size_start != expected_id_block_size) {
             std::cerr << "Warnung: Erwartete ID-Blockgröße (" << expected_id_block_size 
                     << " bytes) stimmt nicht mit gelesener Größe (" << id_block_size_start << " bytes) überein." << std::endl;
-            // Optional: Fortfahren oder Abbruch
         }
 
         // Lesen der ID-Daten
@@ -1077,7 +1016,6 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
             if (u_block_size_start != expected_u_block_size) {
                 std::cerr << "Warnung: Erwartete U-Blockgröße (" << expected_u_block_size 
                         << " Bytes) stimmt nicht mit gelesener Größe (" << u_block_size_start << " Bytes) überein." << std::endl;
-                // Optional: Fortfahren oder Abbruch
             }
 
             // Lesen der U-Daten
@@ -1367,18 +1305,13 @@ bool DataManager::loadConfig(const std::string& filename, Simulation* simulation
 
     std::string line;
     while (std::getline(file, line)) {
-        // Ignoriere leere Zeilen und Kommentare
         if (line.empty() || line[0] == '#') continue;
+       std::string trimmedLine = trim(line);
 
-        // Trim die Zeile, um führende und nachfolgende Leerzeichen zu entfernen
-        std::string trimmedLine = trim(line);
-
-        // Ignoriere leere Zeilen und Kommentare
         if (trimmedLine.empty() || trimmedLine[0] == '#') continue;
 
         std::string key, value;
         if (parseKeyValue(line, key, value)) {
-            // Entferne führende und nachfolgende Leerzeichen
             key = trim(key);
             value = trim(value);
             try {

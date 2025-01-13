@@ -2,7 +2,6 @@
 #include <cmath>
 #include <iostream>
 
-// Standardkonstruktor (Identitätsmatrix)
 mat4::mat4() {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -10,8 +9,6 @@ mat4::mat4() {
         }
     }
 }
-
-// Konstruktor zur Initialisierung der Matrix
 mat4::mat4(float mat[4][4]) {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -20,7 +17,6 @@ mat4::mat4(float mat[4][4]) {
     }
 }
 
-// Addition
 mat4 mat4::operator+(const mat4& other) const {
     mat4 result;
     for (int i = 0; i < 4; ++i) {
@@ -31,7 +27,6 @@ mat4 mat4::operator+(const mat4& other) const {
     return result;
 }
 
-// Subtraktion
 mat4 mat4::operator-(const mat4& other) const {
     mat4 result;
     for (int i = 0; i < 4; ++i) {
@@ -42,7 +37,6 @@ mat4 mat4::operator-(const mat4& other) const {
     return result;
 }
 
-// Matrix-Multiplikation
 mat4 mat4::operator*(const mat4& other) const {
     mat4 result;
     for (int i = 0; i < 4; ++i) {
@@ -56,7 +50,6 @@ mat4 mat4::operator*(const mat4& other) const {
     return result;
 }
 
-// Matrix-Vektor-Multiplikation
 float* mat4::operator*(const float vec[4]) const {
     static float result[4];
     for (int i = 0; i < 4; ++i) {
@@ -68,7 +61,6 @@ float* mat4::operator*(const float vec[4]) const {
     return result;
 }
 
-// Determinante berechnen
 float mat4::determinant() const {
     return m[0][0] * (
         m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) -
@@ -89,13 +81,12 @@ float mat4::determinant() const {
     );
 }
 
-// Inversion der Matrix
 mat4 mat4::inverse() const {
     mat4 result;
     float det = determinant();
     if (det == 0) {
         std::cerr << "Matrix is singular and cannot be inverted" << std::endl;
-        return result; // Gibt die Identitätsmatrix zurück, weil die Inversion nicht möglich ist
+        return result;
     }
 
     mat4 adj;
@@ -110,7 +101,7 @@ mat4 mat4::inverse() const {
     return result;
 }
 
-// Berechnung der adjungierten Matrix
+
 void mat4::adjugate(mat4& adj) const {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -119,7 +110,6 @@ void mat4::adjugate(mat4& adj) const {
     }
 }
 
-// Berechnung des Minor einer Zelle
 float mat4::minor(int row, int col) const {
     mat4 temp;
     int r = 0, c = 0;
@@ -135,12 +125,10 @@ float mat4::minor(int row, int col) const {
     return temp.determinant();
 }
 
-// Berechnung des Cofaktors einer Zelle
 float mat4::cofactor(int row, int col) const {
     return (row + col) % 2 == 0 ? minor(row, col) : -minor(row, col);
 }
 
-// Transponierung der Matrix
 mat4 mat4::transpose() const {
     mat4 result;
     for (int i = 0; i < 4; ++i) {
@@ -151,7 +139,6 @@ mat4 mat4::transpose() const {
     return result;
 }
 
-// Perspektivische Projektionsmatrix
 mat4 mat4::perspective(float fov, float aspect, float near, float far) {
     mat4 result;
     float tanHalfFovy = tan(fov / 2.0f);
@@ -166,7 +153,6 @@ mat4 mat4::perspective(float fov, float aspect, float near, float far) {
     return result;
 }
 
-// Blickrichtungs-Matrix (LookAt)
 mat4 mat4::lookAt(const vec3& eye, const vec3& center, const vec3& up) {
     vec3 f = (center - eye).normalize();
     vec3 s = f.cross(up).normalize();
@@ -189,7 +175,6 @@ mat4 mat4::lookAt(const vec3& eye, const vec3& center, const vec3& up) {
     return result;
 }
 
-// Ausgabe der Matrix
 void mat4::print() const {
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -199,7 +184,6 @@ void mat4::print() const {
     }
 }
 
-// Daten der Matrix zurückgeben
 const float* mat4::data() const {
     return &m[0][0];
 }
