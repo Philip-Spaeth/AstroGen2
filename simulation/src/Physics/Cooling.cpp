@@ -5,5 +5,4 @@
 
 void Cooling::coolingRoutine(Particle* particle)
 {
-    //fuck !!!!!!!!!!!!!!!!!!!!!!! you
 }
