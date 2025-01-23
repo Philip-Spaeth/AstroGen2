@@ -322,7 +322,7 @@ void Simulation::run()
                     }
                     totalMass += particles[i]->mass;
                 }
-                //std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
             }
             /*
             if(globalTime == fixedStep * 10)

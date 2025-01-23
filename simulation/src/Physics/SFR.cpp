@@ -23,7 +23,7 @@ void SFR::sfrRoutine(Particle* particle)
 
     if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
-    double c = 0.01;
+    double c = 0.1;
     double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
 
     double sfr = c * particle->rho / tdyn;
@@ -40,6 +40,6 @@ void SFR::sfrRoutine(Particle* particle)
         particle->dUdt = 0;
         particle->sfr = 0;
         particle->T = 0;
-        //std::cout << "Star formation at particle " << particle->id << std::endl;
+        std::cout << "Star formation at particle " << particle->id << std::endl;
     }
 }

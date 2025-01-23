@@ -44,6 +44,7 @@ void TimeIntegration::Ueuler(Particle* particle, double deltaTime)
     {
         return;
     }
+    std::cout << particle->dUdt * deltaTime << "  ,  " << particle->U <<  "   ,   " << particle->dUdt * deltaTime / particle->U <<std::endl;
     particle->U += particle->dUdt * deltaTime;
     particle->dUdt = 0;
 }
