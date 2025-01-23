@@ -20,41 +20,7 @@ Simulation::Simulation()
     sfr = std::make_shared<SFR>();
 }
 
-Simulation::~Simulation() {}
-void rotateSystemAroundX_90(std::vector<Particle*>& particles)
-{
-    // +90°: cos(+90°)=0, sin(+90°)=+1
-    double cosA =  0.0;
-    double sinA = +1.0;
-
-    for (Particle* p : particles)
-    {
-        // --- Position ---
-        double x = p->position.x;
-        double y = p->position.y;
-        double z = p->position.z;
-
-        double yNew = y * cosA - z * sinA; // = -z
-        double zNew = y * sinA + z * cosA; // = y
-
-        p->position.x = x;
-        p->position.y = yNew;
-        p->position.z = zNew;
-
-        // --- Geschwindigkeit ---
-        double vx = p->velocity.x;
-        double vy = p->velocity.y;
-        double vz = p->velocity.z;
-
-        double vyNew = vy * cosA - vz * sinA; // = -vz
-        double vzNew = vy * sinA + vz * cosA; // = vy
-
-        p->velocity.x = vx;
-        p->velocity.y = vyNew;
-        p->velocity.z = vzNew;
-    }
-}
-
+Simulation::~Simulation(){}
 
 bool Simulation::init()
 {
@@ -88,56 +54,7 @@ bool Simulation::init()
     
     Log::startProcess("load IC");
     dataManager->loadICs(particles, this);
-    /*dataManager->inputPath = "500k_Andromeda.gal";
-    std::vector<Particle*> andromedaParticles;
-    dataManager->loadICs(andromedaParticles, this);
-    dataManager->inputPath = "500k_Milchstraße.gal";
-    std::vector<Particle*> milkyWayParticles;
-    dataManager->loadICs(milkyWayParticles, this);
 
-    double angleX = 0.0;                  // kein kippeln um X
-    double angleY = 77.0 * (M_PI / 180.0);   // ~77° - Inklination
-    double angleZ = 40.0 * (M_PI / 180.0);   // ~40° - Positionswinkel
-
-    double cosX = cos(angleX), sinX = sin(angleX);
-    double cosY = cos(angleY), sinY = sin(angleY);
-    double cosZ = cos(angleZ), sinZ = sin(angleZ);
-    for (int i = 0; i < (int)andromedaParticles.size(); i++)
-    {
-        vec3 pos = andromedaParticles[i]->position;
-
-        double y1 = pos.y * cosX - pos.z * sinX;
-        double z1 = pos.y * sinX + pos.z * cosX;
-        double x2 = pos.x * cosY + z1 * sinY;
-        double z2 = -pos.x * sinY + z1 * cosY;
-        double x3 = x2 * cosZ - y1 * sinZ;
-        double y3 = x2 * sinZ + y1 * cosZ;
-        andromedaParticles[i]->position = vec3(x3, y3, z2);
-        vec3 vel = andromedaParticles[i]->velocity;
-        double vy1 = vel.y * cosX - vel.z * sinX;
-        double vz1 = vel.y * sinX + vel.z * cosX;
-        double vx2 = vel.x * cosY + vz1 * sinY;
-        double vz2 = -vel.x * sinY + vz1 * cosY;
-        double vx3 = vx2 * cosZ - vy1 * sinZ;
-        double vy3 = vx2 * sinZ + vy1 * cosZ;
-
-        andromedaParticles[i]->velocity = vec3(vx3, vy3, vz2);
-        // 2.5e22m , -117000m/s, 1e22m,  time = 3091489847 years , -232643m/s
-        andromedaParticles[i]->position += vec3(1e22, 0, 0);
-        andromedaParticles[i]->velocity += vec3(-232643,0,0);
-        particles.push_back(andromedaParticles[i]);
-    }
-    
-    for (int i = 0; i < (int)milkyWayParticles.size(); i++)
-    {
-        particles.push_back(milkyWayParticles[i]);
-    }
-
-    rotateSystemAroundX_90(particles);
-    dataManager->saveData(particles, 0, fixedTimeSteps, numParticlesOutput, fixedStep, endTime, 0.0);
-    return false;*/
-    
-    //numberOfParticles = particles.size();
     if((size_t)numberOfParticles != particles.size())
     {
         std::cerr << "Error: Number of particles in the ConfigFile does not match the number of particles in the data file." << std::endl;
@@ -379,7 +296,7 @@ void Simulation::run()
             }
 
         }
-        std::cout << "SFR: " << sfr->totalSFR << std::endl;
+        //std::cout << "SFR: " << sfr->totalSFR << std::endl;
 
         Log::startProcess("delete tree");
         delete tree;
@@ -405,8 +322,9 @@ void Simulation::run()
                     }
                     totalMass += particles[i]->mass;
                 }
-                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
+                //std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
             }
+            /*
             if(globalTime == fixedStep * 10)
             {
                 Log::avg_R_sfr(particles, numberOfParticles);
@@ -415,6 +333,7 @@ void Simulation::run()
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime);
             Log::avg_U(particles, globalTime);
+            */
         }
     }
 

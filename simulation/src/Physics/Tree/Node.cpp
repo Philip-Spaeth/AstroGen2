@@ -36,7 +36,7 @@ Node::~Node()
 
         if (children[i])
         {
-            if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) { // Example invalid address
+            if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
                 std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
                 children[i] = nullptr;
                 continue;
@@ -58,13 +58,13 @@ void Node::deleteTreeParallel(int cores)
         {
             if (children[i])
             {
-                if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) { // Example invalid address
+                if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
                     std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
                     children[i] = nullptr;
                     continue;
                 }
 
-                children[i]->deleteTreeParallel((cores / 8) - 1); // Rekursion ohne Parallelität
+                children[i]->deleteTreeParallel((cores / 8) - 1);
                 //delete children[i];
                 children[i] = nullptr;
             }
@@ -171,122 +171,35 @@ vec3 Node::calcSPHForce(Particle* newparticle) const
     return acc;
 }
 
-/* void Node::calculateGravityForce(Particle* newparticle, double softening, double theta)
-{
-    if (mass == 0) return;
-    if (!newparticle) return;
-    if (newparticle == this->particle) return;
-    if (newparticle->mass == 0) return;
-
-    vec3 d = centerOfMass - newparticle->position;
-    double r = d.length();
-
-    if(r == 0) return;
-
-    if(isLeaf)
-    {
-        if (this->particle && newparticle != this->particle)
-        {
-            double e0 = softening;
-            //softening described by Springel, Yoshida & White (2001) eq. 71
-            double e = -(2.8 * e0) / (kernel::softeningKernel(r / (2.8 * e0)) - r);
-            //gravity calculation
-            vec3 gravityAcceleration = Constants::G * mass / (r * r + e * e) * d.normalize();
-            newparticle->acc += gravityAcceleration;
-
-            if(r < newparticle->h * 2)
-            {
-                //check if both are gas particles
-                if(this->particle->type == 2 && newparticle->type == 2)
-                {
-                    newparticle->acc += calcSPHForce(newparticle);
-                }
-            }
-        }
-    }
-    else
-    {
-        double s = radius / r;
-        if (s < theta)
-        {
-            double e0 = softening;
-            //softening described by Springel, Yoshida & White (2001) eq. 71
-            double e = -(2.8 * e0) / (kernel::softeningKernel(r / (2.8 * e0)) - r);
-            //gravity calculation
-            vec3 gravityAcceleration = Constants::G * mass / (r * r + e * e) * d.normalize();
-            newparticle->acc += gravityAcceleration;
-            //std::cout << e << std::endl;
-
-            //SPH calculation
-            if(r < newparticle->h * 2)
-            {
-                //check if both are gas particles
-                if(newparticle->type == 2 && gasMass > 0)
-                {
-                    newparticle->acc += calcSPHForce(newparticle);
-                }
-            }
-        }
-        else
-        { 
-             
-            for (int i = 0; i < 8; i++)
-            {
-                if (children[i]->mass != 0)
-                {
-                    children[i]->calculateGravityForce(newparticle, softening, theta);
-                }
-            }
-        }
-    }
-} */
-
-
-
-// In Node.cpp
 void Node::calculateGravityForce(Particle* newparticle, double softening, double theta) const
 {
-    // 1. Überprüfen, ob dieser Knoten Masse hat
     if (mass == 0) {
         return;
     }
-
-    // 2. Überprüfen, ob das neue Partikel gültig ist
     if (newparticle == nullptr) {
         return;
     }
-
-    // 3. Vermeiden, dass ein Partikel mit sich selbst interagiert
     if (newparticle == this->particle) {
         return;
     }
-
-    // 4. Überprüfen, ob das neue Partikel Masse hat
     if (newparticle->mass == 0) {
         return;
     }
-
-    // 5. Berechnung des Abstandsvektors und der Distanz
     vec3 d = centerOfMass - newparticle->position;
     double r = d.length();
 
-    // 6. Vermeiden von Division durch Null
     if (r == 0) {
         return;
     }
     
-    // 7. Überprüfung, ob der aktuelle Knoten ein Blattknoten ist
     if (isLeaf)
     {
-        // 7.1. Überprüfen, ob dieses Blatt ein Partikel enthält und nicht dasselbe Partikel ist
         if (this->particle != nullptr && newparticle != this->particle)
         {
-            // 7.1.1. Berechnung des Softening-Faktors
             double e0 = softening;
             
             double softeningFactorInput = r / (2.8 * e0);
 
-            // Sicherheitsprüfung der Kernel-Funktion
             double kernelValue = kernel::softeningKernel(softeningFactorInput);
             if ((kernelValue - r) == 0) {
                 return;
@@ -312,13 +225,10 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
             
             newparticle->acc += gravityAcceleration;
 
-            // 7.1.3. Überprüfen, ob der Abstand klein genug ist für SPH-Kräfte
             if (r < newparticle->h * 2)
             {
-                // 7.1.3.1. Überprüfen, ob beide Partikel Gaspartikel sind
                 if (this->particle->type == 2 && newparticle->type == 2)
                 {
-                    // Berechnung der SPH-Kräfte und Hinzufügen zur Beschleunigung
                     vec3 sphForce = calcSPHForce(newparticle);
                     newparticle->acc += sphForce;
                 }
@@ -327,18 +237,14 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
     }
     else
     {
-        // 8. Berechnung des Öffnungsparameters s
         double s = radius / r;
 
-        // 9. Überprüfen, ob der Öffnungsparameter kleiner als theta ist
         if (s < theta)
         {
-            // 7.1.1. Berechnung des Softening-Faktors
             double e0 = softening;
             
             double softeningFactorInput = r / (2.8 * e0);
 
-            // Sicherheitsprüfung der Kernel-Funktion
             double kernelValue = kernel::softeningKernel(softeningFactorInput);
             if ((kernelValue - r) == 0) {
                 return;
@@ -364,13 +270,10 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
             
             newparticle->acc += gravityAcceleration;
 
-            // 9.3. Überprüfen, ob der Abstand klein genug ist für SPH-Kräfte
             if (r < newparticle->h * 2)
             {
-                // 9.3.1. Überprüfen, ob das neue Partikel ein Gaspartikel ist und dieser Knoten Gasmasse hat
                 if (newparticle->type == 2 && gasMass > 0)
                 {
-                    // Berechnung der SPH-Kräfte und Hinzufügen zur Beschleunigung
                     vec3 sphForce = calcSPHForce(newparticle);
                     newparticle->acc += sphForce;
                 }
@@ -378,20 +281,16 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
         }
         else
         { 
-            // 10. Rekursiver Aufruf für alle vorhandenen Kinder
             for (int i = 0; i < 8; i++)
             {
-                // 10.1. Überprüfen, ob das Kind existiert
                 if (children[i] == nullptr) {
                     continue;
                 }
 
-                // 10.2. Überprüfen, ob das Kind Masse hat
                 if (children[i]->mass == 0) {
                     continue;
                 }
 
-                // 10.3. Rekursiver Aufruf der Funktion für das Kind
                 children[i]->calculateGravityForce(newparticle, softening, theta);
             }
         }
@@ -429,7 +328,6 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
 
     isLeaf = false;
 
-    // erstellen der Kinderknoten
     for (int i = 0; i < 8; i++)
     {
         children[i] = new Node();
@@ -442,26 +340,18 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
         children[i]->parent = this;
     }
 
-    // Zuteilung der Partikel in die Kinderknoten
-    // Liste nach Partikeln sortieren sortiertwert ist particle->position->x Sortierung trennwert ist radius
-
-    // Initialisierung der globalen Masseneigenschaften mit separaten Reduktionen für x, y, z
     double total_mass = 0.0;
     double total_gasMass = 0.0;
     double total_position_mass_x = 0.0;
     double total_position_mass_y = 0.0;
     double total_position_mass_z = 0.0;
 
-    // Partikel den Oktanten zuweisen
-    // Verwenden eines lokalen Buffers pro Thread, um Contention zu vermeiden
     int max_threads = cores > 0 ? cores : omp_get_max_threads();
     std::vector<std::vector<std::vector<Particle*>>> thread_octants(max_threads, std::vector<std::vector<Particle*>>(8));
 
-    // Dynamische Chunk-Größe basierend auf der Partikelanzahl und der Tiefe
     int chunk_size = static_cast<int>(particles.size() / (max_threads * (depth + 1)));
     chunk_size = std::max(chunk_size, 1);
 
-    // Parallelisierte Schleife mit separaten Reduktionen für x, y, z
     #pragma omp parallel num_threads(max_threads) default(none) shared(particles, thread_octants, chunk_size, max_threads) \
         reduction(+:total_mass, total_gasMass, total_position_mass_x, total_position_mass_y, total_position_mass_z)
     {
@@ -469,10 +359,10 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
         #pragma omp for schedule(dynamic, chunk_size)
         for (size_t i = 0; i < particles.size(); ++i) {
 
-            if(depth == 0) particles[i]->node = nullptr; // Reset particle Node Pointer
+            if(depth == 0) particles[i]->node = nullptr;
 
             const auto& p = particles[i];
-            if (!p) continue; // Sicherstellen, dass der Particle gültig ist
+            if (!p) continue;
 
             total_mass += p->mass;
             if (p->type == 2) {
@@ -511,7 +401,6 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
         centerOfMass = vec3{ total_position_mass_x / mass, total_position_mass_y / mass, total_position_mass_z / mass };
     }
 
-    // Zusammenführen der per-thread Buffers in die globalen Oktanten-Listen
     #pragma omp parallel for schedule(static) default(none) shared(thread_octants, children, max_threads)
     for (int o = 0; o < 8; ++o) {
         for (int t = 0; t < max_threads; ++t) {
@@ -522,7 +411,6 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
     }
 
 
-    // Rekursiver Aufruf für die Kinderknoten
     for (int i = 0; i < 8; i++)
     {
         if (children[i]->childParticles.size() > 0)
@@ -535,9 +423,7 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
 
 
 
-// Funktion zur Kernzuweisung
 std::vector<int> Node::zuweiseKerne(Node* children[], size_t size, int gesamtKerne) {
-    // 1. Gesamte Arbeitslast berechnen (Parallel mit OpenMP)
     long long gesamteArbeitslast = 0;
 
     #pragma omp parallel for reduction(+:gesamteArbeitslast)
@@ -547,12 +433,10 @@ std::vector<int> Node::zuweiseKerne(Node* children[], size_t size, int gesamtKer
         }
     }
 
-    // Handle Division durch Null
     if (gesamteArbeitslast == 0) {
         return std::vector<int>(size, 0);
     }
 
-    // 2. Proportionale Zuweisung der Kerne und Sammlung der gebrochenen Anteile (Parallel mit OpenMP)
     std::vector<int> zuweisungen(size, 0);
     std::vector<std::pair<double, int>> gebrocheneTeile(size);
 
@@ -569,18 +453,15 @@ std::vector<int> Node::zuweiseKerne(Node* children[], size_t size, int gesamtKer
         }
     }
 
-    // 3. Verbleibende Kerne berechnen (seriell, da std::accumulate in C++17 nicht OpenMP-kompatibel ist)
     int sumZuweisungen = std::accumulate(zuweisungen.begin(), zuweisungen.end(), 0);
     int verbleibend = gesamtKerne - sumZuweisungen;
 
     if (verbleibend > 0) {
-        // 4. Sortiere die Nodes basierend auf den größten gebrochenen Anteilen (seriell)
         std::sort(gebrocheneTeile.begin(), gebrocheneTeile.end(),
                   [](const std::pair<double, int>& a, const std::pair<double, int>& b) -> bool {
                       return a.first > b.first;
                   });
 
-        // 5. Verbleibende Kerne zuweisen (seriell)
         for (const auto& teil : gebrocheneTeile) {
             if (verbleibend <= 0)
                 break;
@@ -593,7 +474,6 @@ std::vector<int> Node::zuweiseKerne(Node* children[], size_t size, int gesamtKer
 }
 
 
-//old insert function
 void Node::insert(Particle* newParticle) 
 {
     if (!newParticle) 
@@ -794,40 +674,6 @@ void Node::calcGasDensity(double massInH)
         }
     }
 }
-
-// for the other particles just for visualization
-/* void Node::calcVisualDensity(double radiusDensityEstimation) 
-{
-    if(parent != nullptr)
-    {
-        double radiusDifference = radiusDensityEstimation - radius;
-        double parentRadiusDifference = radiusDensityEstimation - parent->radius;
-        if(std::abs(radiusDifference) > std::abs(parentRadiusDifference) && parent)
-        {
-            parent->calcVisualDensity(radiusDensityEstimation);
-        }
-        else
-        {
-            double volume = radius * radius * radius;
-            double density = mass / volume;
-            for(size_t i = 0; i < childParticles.size(); i++)
-            {
-                childParticles[i]->visualDensity = density;
-            }
-        
-    }
-    else
-    {
-        std::cout << "Visual Density: Parent is nuillpointer" << std::endl;
-
-        for(size_t i = 0; i < childParticles.size(); i++)
-        {
-            childParticles[i]->visualDensity = 0;
-        }
-    }
-
-} */
-
 
 void Node::calcVisualDensity(double radiusDensityEstimation) 
 {
