@@ -6,9 +6,8 @@
 #include <thread>
 #include <iostream>
 #include <numeric>
-
 #include <vector>
-#include <future>    // Für std::async und std::future
+#include <future>
 
 Node::Node()
 {
@@ -164,7 +163,7 @@ vec3 Node::calcSPHForce(Particle* newparticle) const
     }
 
     //Internal energy
-    newparticle->dUdt += 1.0 / 2.0 * gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+    //newparticle->dUdt += 1.0 / 2.0 * gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
 
     if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) return vec3(0,0,0);
 
@@ -296,10 +295,6 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
         }
     }
 }
-
-
-
-
 
 void Node::insert(const std::vector<Particle*> particles, int cores)
 {

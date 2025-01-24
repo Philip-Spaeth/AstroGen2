@@ -296,8 +296,6 @@ void Simulation::run()
             }
 
         }
-        //std::cout << "SFR: " << sfr->totalSFR << std::endl;
-
         Log::startProcess("delete tree");
         delete tree;
         //tree->deleteTreeParallel();
@@ -322,9 +320,9 @@ void Simulation::run()
                     }
                     totalMass += particles[i]->mass;
                 }
-                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%" << std::endl;
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << std::endl;
             }
-            /*
+            
             if(globalTime == fixedStep * 10)
             {
                 Log::avg_R_sfr(particles, numberOfParticles);
@@ -333,7 +331,7 @@ void Simulation::run()
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime);
             Log::avg_U(particles, globalTime);
-            */
+            
         }
     }
 

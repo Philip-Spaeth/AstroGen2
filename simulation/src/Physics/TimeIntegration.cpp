@@ -1,4 +1,5 @@
 #include "TimeIntegration.h"
+#include "Constants.h"
 
 void TimeIntegration::Euler(Particle* particle, double deltaTime)
 {
@@ -44,7 +45,8 @@ void TimeIntegration::Ueuler(Particle* particle, double deltaTime)
     {
         return;
     }
-    std::cout << particle->dUdt * deltaTime << "  ,  " << particle->U <<  "   ,   " << particle->dUdt * deltaTime / particle->U <<std::endl;
     particle->U += particle->dUdt * deltaTime;
+    particle->T = (Constants::GAMMA - 1.0) * particle->U * Constants::prtn * particle->mu / (Constants::k_b);
+    //std::cout << particle->dUdt * deltaTime << "  ,  " << particle->U <<  "   ,   " << particle->dUdt * deltaTime / particle->U << "  , T: " << particle->T << std::endl;
     particle->dUdt = 0;
 }
