@@ -38,8 +38,16 @@ void SFR::sfrRoutine(Particle* particle)
         particle->type = 1;
         particle->U = 0;
         particle->dUdt = 0;
-        particle->sfr = 0;
         particle->T = 0;
         //std::cout << "Star formation at particle " << particle->id << std::endl;
+        double SNprob = 0.1; 
+        if(randomUniform() < SNprob)
+        {
+            particle->type = 2; 
+            particle->T    = 1e7;
+            particle->U = (particle->T * Constants::k_b) / ((Constants::GAMMA - 1.0) * Constants::prtn * particle->mu);
+            particle->dUdt = 0;
+            //std::cout << "Supernovea at particle " << particle->id << std::endl;
+        }
     }
 }
