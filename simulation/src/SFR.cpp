@@ -5,13 +5,14 @@
 #include <cmath>
 #include "Constants.h"
 #include <random>
+#include "Simulation.h"
 
 double randomUniform() 
 {
     return static_cast<double>(rand()) / RAND_MAX;
 }
 
-void SFR::sfrRoutine(Particle* particle)
+void SFR::sfrRoutine(Particle* particle, Simulation* sim, std::vector<Particle*>* newStars)
 {
     if(!particle) return;
     if(particle->rho <= 0) return;
@@ -21,33 +22,52 @@ void SFR::sfrRoutine(Particle* particle)
     double densityThreshold = 1e-23;
     double temperatureThreshold = 1e4;
 
-    if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
+    //if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
-    double c = 0.01;
+    double c = 1;
     double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
+    double dt = particle->timeStep;
+    double mdot = c * particle->mass / tdyn;
+    double dM   = mdot * dt;
 
-    double sfr = c * particle->rho / tdyn;
-    double Vpart = particle->mass / particle->rho;
-    particle->sfr = ((sfr * Vpart) / 1.98847e30) * 3.154e7; // [M_sun / yr]
-    totalSFR += particle->sfr;
-    double dstarMass = sfr * particle->timeStep * Vpart;
-    double P = dstarMass / particle->mass;
+    double fraction = dM / particle->mass;
 
-    if (randomUniform() < P)
+    if (fraction > 1.0) {
+        fraction = 1.0;
+    }
+
+    double p = 1.0 - std::exp(-fraction);
+    double r = randomUniform();
+    if (r < p)
     {
-        particle->type = 1;
-        particle->U = 0;
-        particle->dUdt = 0;
-        particle->T = 0;
-        //std::cout << "Star formation at particle " << particle->id << std::endl;
-        double SNprob = 0.1; 
-        if(randomUniform() < SNprob)
+        double massToConvert = fraction * particle->mass;
+        particle->accumulatedStarMass += massToConvert;
+        particle->mass -= massToConvert;
+
+        if (particle->mass < 1e-10) {
+            particle->mass = 0.0;
+        }
+    }
+
+    double minMass = 1e35;
+
+    if (particle->accumulatedStarMass >= minMass)
+    {
+        Particle* newStar = new Particle();
+        newStar->type     = 1;
+        newStar->mass     = particle->accumulatedStarMass;
+        newStar->position = particle->position;
+        newStar->velocity = particle->velocity;
+        
+        #pragma omp critical
         {
-            particle->type = 2; 
-            particle->T    = 1e7;
-            particle->U = (particle->T * Constants::k_b) / ((Constants::GAMMA - 1.0) * Constants::prtn * particle->mu);
-            particle->dUdt = 0;
-            //std::cout << "Supernovea at particle " << particle->id << std::endl;
+            newStars->push_back(newStar);
+        }
+        particle->accumulatedStarMass = 0.0;
+
+        particle->mass -= newStar->mass;
+        if (particle->mass < 0.0) {
+            particle->mass = 0.0;
         }
     }
 }

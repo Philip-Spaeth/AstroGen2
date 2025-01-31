@@ -20,6 +20,7 @@
 class Tree;
 class DataManager;
 class Halo;
+class SFR;
 
 class Simulation
 {

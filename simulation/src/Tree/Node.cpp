@@ -120,47 +120,21 @@ vec3 Node::calcSPHForce(Particle* newparticle) const
 
     //Pressure force
     //Monaghan (1992)
-    if(true)
-    {
-        //std::cout << d << std::endl;
-        acc += -gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * kernel::gradientCubicSplineKernel(d, h_i);
-    }
-    //Springel & Hernquist (2002)
-    //entropy conservation formalism
-    if(false)
-    {
-        double d_rho_dh_i = 1;
-        double d_rho_dh_j = 1;
-        double f_i = pow((1.0 + (h_i / (3 * rho_i)) * d_rho_dh_i), -1);
-        double f_j = pow((1.0 + (h_j / (3 * rho_j)) * d_rho_dh_j), -1);
-        acc += -gasMass * (f_i * P_i / (rho_i * rho_i) + f_j * P_j / (rho_j * rho_j)) * kernel::gradientCubicSplineKernel(d, h_i);
-    }
-
+    //std::cout << d << std::endl;
+    acc += -gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * kernel::gradientCubicSplineKernel(d, h_i);
     //Artificial viscosity
     //Monaghan & Gingold (1983)
     double MU_ij = 0.0;
-    if(true)
+    double alpha = 0.2;
+    double beta = 0.4;
+    double eta = 0.01;
+    double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
+    if(v_ij.dot(d) < 0)
     {
-        double alpha = 0.5;
-        double beta = 1.0;
-        double eta = 0.01;
-        double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
-        if(v_ij.dot(d) < 0)
-        {
-            MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
-        }
-        //std::cout << -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij) << std::endl;
-        acc += -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
+        MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
     }
-    //Monaghan (1997)
-    if(false)
-    {
-        double alpha = 1.0;
-        double w_ij = v_ij.dot(d) / (r);
-        double v_sig_ij = (c_i + c_j - 3 * w_ij);
-        MU_ij = -(alpha / 2.0) * (v_sig_ij * w_ij / rho_ij);
-        acc += -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
-    }
+    //std::cout << -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij) << std::endl;
+    acc += -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
 
     //Internal energy
     newparticle->dUdt += 1.0 / 2.0 * gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
