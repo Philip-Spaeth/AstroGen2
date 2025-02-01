@@ -15,5 +15,5 @@ public:
 
     double totalSFR = 0;
 
-    void sfrRoutine(Particle* particle, Simulation* sim, std::vector<Particle*>* newStars);
+    void sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass);
 };

@@ -12,7 +12,7 @@ double randomUniform()
     return static_cast<double>(rand()) / RAND_MAX;
 }
 
-void SFR::sfrRoutine(Particle* particle, Simulation* sim, std::vector<Particle*>* newStars)
+void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
 {
     if(!particle) return;
     if(particle->rho <= 0) return;
@@ -24,14 +24,13 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, std::vector<Particle*>
 
     //if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
-    double c = 1;
+    double c = 0.1;
     double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
     double dt = particle->timeStep;
     double mdot = c * particle->mass / tdyn;
     double dM   = mdot * dt;
 
     double fraction = dM / particle->mass;
-
     if (fraction > 1.0) {
         fraction = 1.0;
     }
@@ -40,34 +39,19 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, std::vector<Particle*>
     double r = randomUniform();
     if (r < p)
     {
-        double massToConvert = fraction * particle->mass;
-        particle->accumulatedStarMass += massToConvert;
-        particle->mass -= massToConvert;
+        // convert gas particle to star particle
+        particle->type = 1;
+        newStarMass += particle->mass;
 
-        if (particle->mass < 1e-10) {
-            particle->mass = 0.0;
-        }
-    }
-
-    double minMass = 1e35;
-
-    if (particle->accumulatedStarMass >= minMass)
-    {
-        Particle* newStar = new Particle();
-        newStar->type     = 1;
-        newStar->mass     = particle->accumulatedStarMass;
-        newStar->position = particle->position;
-        newStar->velocity = particle->velocity;
-        
-        #pragma omp critical
+        //Supernoavae
+        double snChance = 0.12; 
+        double rSN = randomUniform();
+        if (rSN < snChance)
         {
-            newStars->push_back(newStar);
-        }
-        particle->accumulatedStarMass = 0.0;
-
-        particle->mass -= newStar->mass;
-        if (particle->mass < 0.0) {
-            particle->mass = 0.0;
+            //convert to hot gas
+            particle->type = 2;
+            particle->T = 1e7;
+            particle->U = Constants::k_b * particle->T / ((Constants::GAMMA - 1.0) * Constants::prtn * particle->mu);
         }
     }
 }

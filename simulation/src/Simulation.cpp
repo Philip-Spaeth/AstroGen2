@@ -252,7 +252,7 @@ void Simulation::run()
         // Second kick
         Log::startProcess("second kick");
         sfr->totalSFR = 0;
-        std::vector<Particle*> newStars;
+        double newStarsMass = 0;
         #pragma omp parallel for
         for (int i = 0; i < (int)particles.size(); i++)
         {
@@ -276,7 +276,7 @@ void Simulation::run()
                     if(starFormation)
                     {
                         //calc SFR
-                        sfr->sfrRoutine(particles[i], this, &newStars);
+                        sfr->sfrRoutine(particles[i], this, newStarsMass);
                         numberOfParticles = particles.size();
                     }
                     
@@ -297,12 +297,6 @@ void Simulation::run()
                 particles[i]->nextIntegrationTime += particles[i]->timeStep;
             }
 
-        }
-        double newStarsMass = 0;
-        for (auto &p : newStars)
-        {
-            newStarsMass += p->mass;
-            particles.push_back(std::move(p));
         }
         double SFR = (newStarsMass / Units::MSUN) / (particles[23]->nextIntegrationTime / Units::YR);
         sfr->totalSFR = SFR;
@@ -342,7 +336,7 @@ void Simulation::run()
                 Log::avg_R_U(particles, particles.size());
             }
             Log::total_Mass(particles, globalTime);
-            Log::sfr(particles, globalTime);
+            Log::sfr(particles, globalTime, sfr->totalSFR);
             Log::avg_U(particles, globalTime);
             
         }

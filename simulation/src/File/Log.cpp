@@ -26,21 +26,9 @@ std::string formatWithComma(double value)
 
 namespace Log
 {
-    void sfr(std::vector<Particle*> particles, const double time)
+    void sfr(std::vector<Particle*> particles, const double time, double sfr)
     {
-        double totalSFR = 0;
-        double n = 0;
-        for (size_t i = 0; i < particles.size(); i++)
-        {
-            if(particles[i]->type == 2) 
-            {
-                totalSFR += particles[i]->sfr;
-                n++;
-            }
-        }
-        Log::printData("total_SFR.csv", time, totalSFR);
-        totalSFR /= n;
-        Log::printData("avg_SFR.csv", time, totalSFR);
+        Log::printData("total_SFR.csv", time, sfr);
     }
     void total_Mass(std::vector<Particle*> particles, const double time)
     {

@@ -35,7 +35,7 @@ namespace Log
     //save SFR for each radius
     void avg_R_sfr(std::vector<Particle*> particles, int numberOfParticles);
     //save avrage SFR for the whole system
-    void sfr(std::vector<Particle*> particles, const double time);
+    void sfr(std::vector<Particle*> particles, const double time, double sfr);
     
     //save total mass for the whole system
     void total_Mass(std::vector<Particle*> particles, const double time);
