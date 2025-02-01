@@ -139,7 +139,7 @@ void Simulation::run()
 
     // Set the next integration time for each particle to 0.0 to ensure that the force is calculated in the first iteration
     #pragma omp parallel for
-    for (int i = 0; i < numberOfParticles; i++)
+    for (int i = 0; i < (int)particles.size(); i++)
     {
         if (!particles[i]) 
         {
@@ -152,7 +152,7 @@ void Simulation::run()
 
     // Initialize particles' time steps and next integration times
     #pragma omp parallel for
-    for (int i = 0; i < numberOfParticles; i++)
+    for (int i = 0; i < (int)particles.size(); i++)
     {
         if (!particles[i]) 
         {
@@ -177,7 +177,7 @@ void Simulation::run()
     {
         // Determine the next integration time for each particle
         #pragma omp parallel for
-        for (int i = 0; i < numberOfParticles; i++)
+        for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
             {
@@ -202,7 +202,7 @@ void Simulation::run()
         // Find the smallest next integration time among all particles
         double minIntegrationTime = std::numeric_limits<double>::max();
         #pragma omp parallel for reduction(min:minIntegrationTime)
-        for (int i = 0; i < numberOfParticles; i++)
+        for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
             {
@@ -222,7 +222,7 @@ void Simulation::run()
         Log::startProcess("first kick");
         // Update positions and velocities using the KDK Leapfrog scheme for particles due to be integrated
         #pragma omp parallel for
-        for (int i = 0; i < numberOfParticles; i++)
+        for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
             {
@@ -252,8 +252,9 @@ void Simulation::run()
         // Second kick
         Log::startProcess("second kick");
         sfr->totalSFR = 0;
+        std::vector<Particle*> newStars;
         #pragma omp parallel for
-        for (int i = 0; i < numberOfParticles; i++)
+        for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
             {
@@ -275,7 +276,8 @@ void Simulation::run()
                     if(starFormation)
                     {
                         //calc SFR
-                        sfr->sfrRoutine(particles[i]);
+                        sfr->sfrRoutine(particles[i], this, &newStars);
+                        numberOfParticles = particles.size();
                     }
                     
                     if(particles[i]->type == 2)
@@ -296,6 +298,15 @@ void Simulation::run()
             }
 
         }
+        double newStarsMass = 0;
+        for (auto &p : newStars)
+        {
+            newStarsMass += p->mass;
+            particles.push_back(std::move(p));
+        }
+        double SFR = (newStarsMass / Units::MSUN) / (particles[23]->nextIntegrationTime / Units::YR);
+        sfr->totalSFR = SFR;
+
         Log::startProcess("delete tree");
         delete tree;
         //tree->deleteTreeParallel();
@@ -312,7 +323,7 @@ void Simulation::run()
             {
                 double gasMass = 0;
                 double totalMass = 0;
-                for(int i = 0; i < numberOfParticles; i++)
+                for(int i = 0; i < (int)particles.size(); i++)
                 {
                     if(particles[i]->type == 2)
                     {
@@ -320,13 +331,15 @@ void Simulation::run()
                     }
                     totalMass += particles[i]->mass;
                 }
-                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << std::endl;
+                std::cout << std::setprecision(6);
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << "   N: " << particles.size() << std::endl;
+                std::cout << std::fixed << std::setprecision(2);
             }
             
             if(globalTime == fixedStep * 10)
             {
-                Log::avg_R_sfr(particles, numberOfParticles);
-                Log::avg_R_U(particles, numberOfParticles);
+                Log::avg_R_sfr(particles, particles.size());
+                Log::avg_R_U(particles, particles.size());
             }
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime);
@@ -350,7 +363,7 @@ void Simulation::calculateForcesWithoutOctree(Particle* p)
     p->dUdt = 0;
 
     #pragma omp parallel for
-    for (int j = 0; j < numberOfParticles; j++)
+    for (int j = 0; j < (int)particles.size(); j++)
     {
         if (p != particles[j])
         {
