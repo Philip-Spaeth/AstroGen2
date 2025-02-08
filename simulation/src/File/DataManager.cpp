@@ -740,6 +740,8 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         double gasMass, starMass, darkMass = 0;
         for (int i = 0; i < (int)particles.size(); i++)
         {
+            //particles[i]->U *= 10;
+
             if(particles[i]->type == 1) {starCount++; starMass += particles[i]->mass; totalMass += particles[i]->mass;}
             if(particles[i]->type == 2) {gasCount++; gasMass += particles[i]->mass; totalMass += particles[i]->mass;}
             if(particles[i]->type == 3) {darkCount++; darkMass += particles[i]->mass; totalMass += particles[i]->mass;}

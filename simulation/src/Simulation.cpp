@@ -249,11 +249,35 @@ void Simulation::run()
         Log::startProcess("Force Calculation");
         tree->calculateForces();
 
+        //SN pending
+        for (int i = 0; i < (int)particles.size(); i++)
+        {
+            if (!particles[i]) {continue;}
+            if (particles[i]->SN_pending)
+            {
+                if(particles[i]->node)
+                {
+                    particles[i]->node->SNFeedback(particles[i], 1e51, massInH);
+                    particles[i]->SN_pending = false;
+
+                    auto it = std::find(particles.begin(), particles.end(), particles[i]);
+                    if (it != particles.end()) 
+                    {
+                        delete *it;
+                        #pragma omp critical
+                        {
+                            particles.erase(it);
+                        }
+                    }
+                }
+            }
+        }
+
         // Second kick
         Log::startProcess("second kick");
         sfr->totalSFR = 0;
         double newStarsMass = 0;
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
@@ -266,8 +290,6 @@ void Simulation::run()
             {
                 if(particles[i]->type == 2)
                 {
-                    
-                    //std::cout << std::fixed << std::scientific << "Particle " << i << " rho: " << particles[i]->T << std::endl;
                     //cooling and star formation
                     if(coolingEnabled)
                     {
@@ -298,7 +320,8 @@ void Simulation::run()
             }
 
         }
-        double SFR = (newStarsMass / Units::MSUN) / (particles[23]->nextIntegrationTime / Units::YR);
+
+        double SFR = (newStarsMass / Units::MSUN) / (particles[23]->timeStep / Units::YR);
         sfr->totalSFR = SFR;
 
         Log::startProcess("delete tree");

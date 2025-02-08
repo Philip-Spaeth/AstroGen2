@@ -24,6 +24,8 @@ public:
     void calculateGravityForce(Particle* newparticle, double softening, double theta) const;
     vec3 calcSPHForce(Particle* newparticle) const;
 
+    void SNFeedback(Particle* p, double energy, double massInH);
+
     double mH = 0;
     double mRho = 0;
     double mP = 0;

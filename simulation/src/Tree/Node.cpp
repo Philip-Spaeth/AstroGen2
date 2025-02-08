@@ -82,7 +82,48 @@ void Node::deleteTreeParallel(int cores)
     }
 }
 
+void Node::SNFeedback(Particle* p, double energy, double massInH)
+{
+    if(p->h == 0) return;
+    if(parent != nullptr)
+    {
+        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) 
+        {
+            std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+            return;
+        }
+        if(massInH >= gasMass)
+        {
+            parent->SNFeedback(p, energy, massInH);
+        }
+    }
 
+    if(massInH < gasMass)
+    {
+        //erg -> J
+        double SNEnergy = energy * 1e-7;
+        int c = 0;
+        //apply the SN energy to all the child gas particles
+        for (int i = 0; i < (int)childParticles.size(); i++)
+        {
+            if(childParticles[i]->type == 2)
+            {
+                c++;
+                vec3 d = childParticles[i]->position - p->position;
+                double r = d.length();
+                if(r < p->h * 2)
+                {
+                    double kernelValue = kernel::cubicSplineKernel(r, p->h);
+                    childParticles[i]->U += SNEnergy * kernelValue / massInH;
+                    
+                    //delayed cooling
+                    childParticles[i]->delayedCoolingTime = 1e15;
+                }
+            }
+        }
+        std::cout << c << std::endl; 
+    }
+}
 
 vec3 Node::calcSPHForce(Particle* newparticle) const
 {
@@ -98,7 +139,7 @@ vec3 Node::calcSPHForce(Particle* newparticle) const
     double rho_j = mRho;
     if(isLeaf) rho_j = this->particle->rho;
     rho_j = rho_i;
-    double rho_ij = (rho_i + rho_j) / 2.0;
+    //double rho_ij = (rho_i + rho_j) / 2.0;
     //if(rho_i == 0 || rho_j == 0) return vec3(0,0,0);
 
     double P_i = newparticle->P;
@@ -576,9 +617,8 @@ void Node::calcGasDensity(double massInH)
     if(parent != nullptr)
     {
 
-        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) { // Beispiel für eine ungültige Adresse
+        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
             std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
-            // Optional: Fehlerbehandlung, z.B. Rückkehr oder Ausnahme werfen
             return;
         }
 
@@ -603,9 +643,8 @@ void Node::calcGasDensity(double massInH)
             #pragma omp parallel for 
             for (size_t i = 0; i < childParticles.size(); i++)
             {
-                if(reinterpret_cast<std::uintptr_t>(childParticles[i]) < 0x1000) { // Beispiel für eine ungültige Adresse
+                if(reinterpret_cast<std::uintptr_t>(childParticles[i]) < 0x1000) {
                     std::cerr << "Error (calcGasDensity): childParticle pointer is invalid (address: " << childParticles[i] << ")" << std::endl;
-                    // Optional: Fehlerbehandlung, z.B. Rückkehr oder Ausnahme werfen
                     continue;
                 }
 

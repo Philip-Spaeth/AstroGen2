@@ -6,6 +6,14 @@
 
 void Cooling::coolingRoutine(Particle* particle)
 {
+    //delayed cooling because of SN feedback
+    if(particle->delayedCoolingTime > 0)
+    {
+        particle->delayedCoolingTime -= particle->timeStep;
+        return;
+    }
+    else {particle->delayedCoolingTime = 0;}
+
     double density = particle->rho;
     double T = particle->T;
 
