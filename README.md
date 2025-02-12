@@ -8,7 +8,7 @@ Welcome to AstroGen 2.0, a modern n-body simulation software designed to model t
 - **Smoothed Particle Hydrodynamics (SPH)**: Models fluid-like behavior of interstellar gas.
 - **Radiative Cooling**: Integrates radiative cooling to realistically model the thermodynamics of interstellar gas and promote star formation.
 - **Star Formation**: Simulates the process of star formation from dense, cold gas.
-- **HDF5 Data Storage**: Stores simulation data in an efficient HDF5 format, enabling easy analysis and visualization of large datasets.
+- **Supernova feedback**: Integrates the feedback processes from Supernovas including models for both thermal and kinetic feedback
   
 ## Installation
 See the GetttingStarted.md file for further information. 
