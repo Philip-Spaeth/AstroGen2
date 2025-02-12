@@ -27,5 +27,5 @@ public:
     double calcTreeWidth();
 
     void calcVisualDensity();
-    void calcGasDensity();
+    void calcGasDensity(int N_in_h);
 };
