@@ -1325,9 +1325,12 @@ bool DataManager::loadConfig(const std::string& filename, Simulation* simulation
                 else if (key == "endTime") simulation->endTime = std::stod(value);
                 else if (key == "fixedTimeSteps") simulation->fixedTimeSteps = std::stod(value);
                 else if (key == "e0") simulation->e0 = std::stod(value);
-                else if (key == "massInH") simulation->massInH = std::stod(value);
+                else if (key == "N_in_h") simulation->N_in_h = std::stod(value);
                 else if (key == "starformation") {if(value == "true" || value == "True") {simulation->starFormation = true;}else if(value == "false" || value == "False") {simulation->starFormation = false;}}
+                else if (key == "c_sfr") simulation->c_sfr = std::stod(value);
                 else if (key == "SN_feedback") {if(value == "true" || value == "True") {simulation->SNFeedbackEnabled = true;}else if(value == "false" || value == "False") {simulation->SNFeedbackEnabled = false;}}
+                else if (key == "f_v") simulation->f_v_sn = std::stod(value);
+                else if (key == "e_SN") simulation->e_sn = std::stod(value);
                 else if (key == "cooling") {if(value == "true" || value == "True") {simulation->coolingEnabled = true;}else if(value == "false" || value == "False") {simulation->coolingEnabled = false;}}
                 else if (key == "H0") simulation->H0 = std::stod(value);
                 else if (key == "theta") simulation->theta = std::stod(value);

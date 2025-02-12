@@ -92,7 +92,7 @@ bool Simulation::init()
     tree->calcVisualDensity();
     //calculate the gas density for SPH
     Log::startProcess("density");
-    tree->calcGasDensity();
+    tree->calcGasDensity(N_in_h);
 
     // Initial force calculation
     Log::startProcess("Gravity");
@@ -244,7 +244,7 @@ void Simulation::run()
 
         tree->calcVisualDensity();
         Log::startProcess("density");
-        tree->calcGasDensity();
+        tree->calcGasDensity(N_in_h);
 
         Log::startProcess("SN-feedback");
         //SN pending
@@ -257,7 +257,7 @@ void Simulation::run()
                 {
                     if(particles[i]->node)
                     {
-                        particles[i]->node->SNFeedback_Kawata(particles[i], 1e51, massInH, 4.0, 0.9);
+                        particles[i]->node->SNFeedback_Kawata(particles[i], 1e51, e_sn, f_v_sn);
                         particles[i]->SN_pending = false;
 
                         auto it = std::find(particles.begin(), particles.end(), particles[i]);
@@ -331,7 +331,6 @@ void Simulation::run()
 
         Log::startProcess("delete tree");
         delete tree;
-        //tree->deleteTreeParallel();
 
         // Save data at regular intervals defined by fixedStep
         if (globalTime >= nextSaveTime)
@@ -360,8 +359,8 @@ void Simulation::run()
             
             if(globalTime == fixedStep * 10)
             {
-                Log::avg_R_sfr(particles, particles.size());
-                Log::avg_R_U(particles, particles.size());
+                //Log::avg_R_sfr(particles, particles.size());
+                //Log::avg_R_U(particles, particles.size());
             }
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime, sfr->totalSFR);

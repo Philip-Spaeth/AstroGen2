@@ -96,7 +96,7 @@ void Node::deleteTreeParallel(int cores)
 }
 
 // kinematic and thermal feedback following Kawata (2001)
-void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, double epsilonSN, double f_v)
+void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, double f_v)
 {
     if(p->h == 0) return;
     if(parent != nullptr)
@@ -109,13 +109,13 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, doubl
                 return;
             }
         }
-        if(massInH >= gasMass)
+        if(radius < p->h * 5)
         {
-            parent->SNFeedback_Kawata(p, snEnergy, massInH, epsilonSN, f_v);
+            parent->SNFeedback_Kawata(p, snEnergy, epsilonSN, f_v);
         }
     }
 
-    if(massInH < gasMass)
+    if(radius >= p->h * 5)
     {
         double E_SN_i = snEnergy * epsilonSN;
 
@@ -125,7 +125,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, doubl
             {
                 vec3 d = childParticles[i]->position - p->position;
                 double r = d.length();
-                if(r < p->h * 2)
+                if(r < p->h)
                 {
                     double w = kernel::cubicSplineKernel(r, p->h);
                     // \Delta E_{SN,j} = E_{SN,i} * (m_j / rho_g,i) * W(r_{ij}, h_{ij})

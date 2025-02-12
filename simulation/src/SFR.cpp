@@ -8,10 +8,7 @@
 #include "Simulation.h"
 #include <algorithm> 
 
-SFR::SFR()
-{
-    rng.seed(42);
-}
+SFR::SFR(){rng.seed(42);}
 
 void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
 {
@@ -26,7 +23,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
 
     if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
-    double c = 0.01;
+    double c = sim->c_sfr;
     double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
     double dt = particle->timeStep;
     

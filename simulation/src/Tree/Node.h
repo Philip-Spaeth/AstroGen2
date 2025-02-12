@@ -34,7 +34,7 @@ public:
     void calcSPHForce(Particle* p);
 
     // kinematic and thermal feedback following Kawata (2001)
-    void SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, double epsilonSN, double f_v);
+    void SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, double f_v);
 
     //calculate the density for all particles, without kernel approximation
     void calcVisualDensity(double radiusDensityEstimation);

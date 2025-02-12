@@ -121,7 +121,7 @@ double Tree::calcTreeWidth()
     return max;
 }
 
-void Tree::calcGasDensity()
+void Tree::calcGasDensity(int N_in_h)
 {
     #pragma omp parallel for
     for (int i = 0; i < (int)simulation->particles.size(); i++)
@@ -132,7 +132,7 @@ void Tree::calcGasDensity()
             {
                 if (simulation->particles[i]->node)
                 {
-                    simulation->particles[i]->node->calcDensity(64, simulation->particles[i]);
+                    simulation->particles[i]->node->calcDensity(N_in_h, simulation->particles[i]);
                     simulation->particles[i]->P = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * simulation->particles[i]->rho;
                     simulation->particles[i]->T = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * Constants::prtn * simulation->particles[i]->mu / (Constants::k_b);
                 }

@@ -53,11 +53,16 @@ public:
     double e0; //softening factor
     
     //SPH parameters
-    double massInH; //in kg
+    double N_in_h = 64; //number of neighbors in the smoothing length
 
     bool starFormation = false;
+    double c_sfr = 0;
+
     bool coolingEnabled = false;
+
     bool SNFeedbackEnabled = false;
+    double f_v_sn = 0;
+    double e_sn = 0;
 
     //Visual density, for all particles, just for visualization, beacuse the real density is only calculated for Gas particles, has no physical meaning
     double visualDensityRadius; //in m
