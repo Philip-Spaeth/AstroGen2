@@ -15,31 +15,11 @@ sudo apt update
 sudo apt install cmake gcc g++
 ```
 
-## Dependencies
-
-Astro Genesis 2.0 relies on several scientific libraries to perform computations and handle data. Ensure the following dependencies are installed:
-
-- GNU Scientific Library (GSL)
-- HDF5 (Hierarchical Data Format 5)
-
-1. **Install GNU Scientific Library (GSL)**
-   
-```sh
-sudo apt install libgsl-dev
-```
-
-2. **Install HDF5**
-HDF5 is used to efficiently store and manage large amounts of scientific data.
-
-```sh
-sudo apt install libhdf5-dev
-```
-
 ## Cloning the Repository
 
 First, clone the repository to your local machine:
    ```sh
-   git clone https://github.com/yourusername/astro-genesis-2.0.git
+   git clone https://github.com/Philip-Spaeth/AstroGen2
 ```
 
 
@@ -58,9 +38,10 @@ Build the project using CMake:
 ```
 
 ## Running the Compiled Program
+
 After successfully building the project, you can run the program.
 ```
-./Astro_Genesis
+./AstroGen2
 ```
 
 
