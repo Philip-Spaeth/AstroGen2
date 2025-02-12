@@ -25,8 +25,7 @@ First, clone the repository to your local machine:
 
 Navigate to the project directory:
    ```sh
-    cd astro-genesis-2.0
-    cd simulation
+    cd AstroGen2/simulation
 ```
 
 Build the project using CMake:
