@@ -6,9 +6,12 @@
 #include "Constants.h"
 #include <random>
 #include "Simulation.h"
-#include <algorithm>    
+#include <algorithm> 
 
-double randomUniform() {return static_cast<double>(rand()) / RAND_MAX;}
+SFR::SFR()
+{
+    rng.seed(42);
+}
 
 void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
 {
@@ -17,7 +20,8 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     if(particle->U <= 0) return;
     if(particle->mass <= 0) return;
 
-    double densityThreshold = 1e-23;
+    //2 × 10−25 g cm−3
+    double densityThreshold = 2e-22;
     double temperatureThreshold = 1e4;
 
     if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
@@ -28,10 +32,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     
     double p_star = 1.0 - std::exp(-c * dt / tdyn);
     
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    random::normal_dist();
+    static std::uniform_real_distribution<double> dist(0.0, 1.0);
     double r = dist(rng);
     
     if (r < p_star)
@@ -48,30 +49,34 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
         newStar->galaxyPart = particle->galaxyPart;
         newStar->id = sim->particles.size();
 
-        double p_supernova = 0.12;
-        double r_sn = dist(rng);
-        if (r_sn < p_supernova)
+        if(sim->SNFeedbackEnabled)
         {
-            newStar->SN_pending = true;
-            newStar->h = particle->h;
-            newStar->rho = particle->rho;
-            newStar->P = particle->P;
-            newStar->T = particle->T;
-            newStar->U = particle->U;
-            newStar->mu = particle->mu;
+            double p_supernova = 0.12;
+            double r_sn = dist(rng);
+            if (r_sn < p_supernova)
+            {
+                newStar->SN_pending = true;
+                newStar->h = particle->h;
+                newStar->rho = particle->rho;
+                newStar->P = particle->P;
+                newStar->T = particle->T;
+                newStar->U = particle->U;
+                newStar->mu = particle->mu;
+            }
+            else
+            {
+                newStar->SN_pending = false;
+            }
         }
-        else
-        {
-            newStar->SN_pending = false;
-        }
+        
         #pragma omp critical
         {
             sim->particles.push_back(newStar);
         }
         
         particle->mass -= starMass;
-        const double minGasMass = 1e-5;
-        if (particle->mass < minGasMass) 
+        const double minGasMass = 1e30;
+        if (particle->mass < minGasMass)
         {
             auto it = std::find(sim->particles.begin(), sim->particles.end(), particle);
             if (it != sim->particles.end()) 

@@ -1,42 +1,47 @@
 #pragma once 
 
 #include <iostream>
-#include "Particle.h"
 #include <memory>
 #include <vector>
+#include <unordered_map>
+#include <future>
+#include <random>
+#include <cmath>
+#include <queue>
+#include <cmath>
+#include <limits>
+#include <iostream>
+#include <cstdint>
+#include "Particle.h"
+#include "vec3.h"
 
 class Particle;
-
 class Node
 {
+private:
+    //no repruduction
+    bool memSafeMode = true;
+
 public:
     Node();
     virtual ~Node();
     void deleteTreeParallel(int cores);
 
     void insert(const std::vector<Particle*> particles, int cores);
-    std::vector<int> zuweiseKerne(Node* children[], size_t size, int gesamtKerne);
-    //old
-    void insert(Particle* newParticle);
-
     int getOctant(Particle* newParticle);
 
     void calculateGravityForce(Particle* newparticle, double softening, double theta) const;
-    vec3 calcSPHForce(Particle* newparticle) const;
+    void calcSPHForce(Particle* p);
 
-    void SNFeedback(Particle* p, double energy, double massInH);
+    // kinematic and thermal feedback following Kawata (2001)
+    void SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, double epsilonSN, double f_v);
 
-    double mH = 0;
-    double mRho = 0;
-    double mP = 0;
-    vec3 mVel = vec3(0,0,0);
-
-    //calculate the density for all particles
+    //calculate the density for all particles, without kernel approximation
     void calcVisualDensity(double radiusDensityEstimation);
 
     //SPH only for gas particles, Stars and dark matter particles are not affected
     double gasMass = 0; //mass of gas particles
-    void calcGasDensity(double massInH);
+    void calcDensity(int N, Particle* p);
 
     int depth;
     bool isLeaf = false;
@@ -58,3 +63,4 @@ public:
     //parent of the node
     Node* parent;
 };
+

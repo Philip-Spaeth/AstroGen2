@@ -38,17 +38,10 @@ public:
     double rho = 0; //density in kg/m^3
     double P = 0; //pressure in Pascal
     double T = 0; //temperature in Kelvin
-    double accumulatedStarMass = 0;
     double dUdt = 0;
     double U = 0; //internal energy in J/kg
-
     double delayedCoolingTime = 0;
     double mu = 0.58; //mean molecular weight
-    double n_H = 0; //hydrogen number density
-    double n_He = 0; //helium number density
-    double n_e = 0; //electron number density
-    double n_H2 = 0; //molecular hydrogen number density
-    double ne = 0; //free electron fraction
 
     //star formation
     double sfr = 0; //star formation rate

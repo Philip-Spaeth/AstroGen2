@@ -7,7 +7,15 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <unordered_map>
 #include <future>
+#include <random>
+#include <cmath>
+#include <queue>
+#include <cmath>
+#include <limits>
+#include <iostream>
+#include <cstdint>
 
 Node::Node()
 {
@@ -35,10 +43,13 @@ Node::~Node()
 
         if (children[i])
         {
-            if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
-                std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
-                children[i] = nullptr;
-                continue;
+            if(memSafeMode)
+            {
+                if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
+                    std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
+                    children[i] = nullptr;
+                    continue;
+                }
             }
 
 
@@ -57,14 +68,16 @@ void Node::deleteTreeParallel(int cores)
         {
             if (children[i])
             {
-                if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
-                    std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
-                    children[i] = nullptr;
-                    continue;
+                if(memSafeMode)
+                {
+                    if(reinterpret_cast<std::uintptr_t>(children[i]) < 0x1000) {
+                        std::cerr << "Error (Dekonstruktor): children[i] pointer is invalid (address: " << children[i] << ")" << std::endl;
+                        children[i] = nullptr;
+                        continue;
+                    }
                 }
 
                 children[i]->deleteTreeParallel((cores / 8) - 1);
-                //delete children[i];
                 children[i] = nullptr;
             }
         }
@@ -82,107 +95,138 @@ void Node::deleteTreeParallel(int cores)
     }
 }
 
-void Node::SNFeedback(Particle* p, double energy, double massInH)
+// kinematic and thermal feedback following Kawata (2001)
+void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double massInH, double epsilonSN, double f_v)
 {
     if(p->h == 0) return;
     if(parent != nullptr)
     {
-        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) 
+        if(memSafeMode)
         {
-            std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
-            return;
+            if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) 
+            {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
+            }
         }
         if(massInH >= gasMass)
         {
-            parent->SNFeedback(p, energy, massInH);
+            parent->SNFeedback_Kawata(p, snEnergy, massInH, epsilonSN, f_v);
         }
     }
 
     if(massInH < gasMass)
     {
-        //erg -> J
-        double SNEnergy = energy * 1e-7;
-        int c = 0;
-        //apply the SN energy to all the child gas particles
+        double E_SN_i = snEnergy * epsilonSN;
+
         for (int i = 0; i < (int)childParticles.size(); i++)
         {
             if(childParticles[i]->type == 2)
             {
-                c++;
                 vec3 d = childParticles[i]->position - p->position;
                 double r = d.length();
                 if(r < p->h * 2)
                 {
-                    double kernelValue = kernel::cubicSplineKernel(r, p->h);
-                    childParticles[i]->U += SNEnergy * kernelValue / massInH;
-                    
-                    //delayed cooling
-                    childParticles[i]->delayedCoolingTime = 1e15;
+                    double w = kernel::cubicSplineKernel(r, p->h);
+                    // \Delta E_{SN,j} = E_{SN,i} * (m_j / rho_g,i) * W(r_{ij}, h_{ij})
+                    //    star.gasDensity ~ rho_{g,i}
+                    double deltaESN_j = E_SN_i * (childParticles[i]->mass / childParticles[i]->rho) * w;
+
+                    //kineitc fraction
+                    double deltaESN_kin = f_v * deltaESN_j;
+                    double deltaV_mag = std::sqrt( 2.0 * deltaESN_kin / childParticles[i]->mass);
+                    //std::cout << "deltaV_mag: " << deltaV_mag << "    j: " << deltaV_mag / childParticles[i]->velocity.length() << std::endl;
+                    vec3 dir = (r > 0.0) ? (d / r) : vec3{0.0, 0.0, 0.0};
+                    vec3 deltaV = deltaV_mag * dir;
+                    childParticles[i]->velocity += deltaV;
+
+                    //thermal fraction
+                    double deltaESN_therm = (1.0 - f_v) * deltaESN_j;
+
+                    // \Delta U_{j} = \Delta E_{SN,j} / m_j
+                    double deltaU = deltaESN_therm / childParticles[i]->mass;
+                    //std::cout << "deltaU: " << deltaU << " & :  " << deltaU / childParticles[i]->U << std::endl;
+                    childParticles[i]->U += deltaU;
                 }
             }
         }
-        std::cout << c << std::endl; 
     }
 }
 
-vec3 Node::calcSPHForce(Particle* newparticle) const
+void Node::calcSPHForce(Particle* p)
 {
-    vec3 acc = vec3(0,0,0);
-    double h_i = newparticle->h;
-    double h_j = mH;
-    if(isLeaf) h_j = this->particle->h;
-    h_j = h_i;
-    double h_ij = (h_i + h_j) / 2.0;
-    //if(h_i == 0 || h_j == 0) return vec3(0,0,0);
-
-    double rho_i = newparticle->rho;
-    double rho_j = mRho;
-    if(isLeaf) rho_j = this->particle->rho;
-    rho_j = rho_i;
-    //double rho_ij = (rho_i + rho_j) / 2.0;
-    //if(rho_i == 0 || rho_j == 0) return vec3(0,0,0);
-
-    double P_i = newparticle->P;
-    double P_j = mP;
-    if(isLeaf) P_j = this->particle->P;
-    P_j = P_i;
-    //if(P_i == 0 || P_j == 0) return vec3(0,0,0);
-
-    vec3 v_i = newparticle->velocity;
-    vec3 v_j = mVel;
-    if(isLeaf) v_j = this->particle->velocity;
-    vec3 v_ij = v_i - v_j;
-
-    vec3 d = newparticle->position - centerOfMass;
-    double r = d.length();
-    double c_i = sqrt(Constants::GAMMA * P_i / rho_i);
-    double c_j = sqrt(Constants::GAMMA * P_i / rho_i);
-    double c_ij = (c_i + c_j) / 2.0;
-
-    //Pressure force
-    //Monaghan (1992)
-    //std::cout << d << std::endl;
-    acc += -gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * kernel::gradientCubicSplineKernel(d, h_i);
-    //Artificial viscosity
-    //Monaghan & Gingold (1983)
-    double MU_ij = 0.0;
-    double alpha = 0.2;
-    double beta = 0.4;
-    double eta = 0.01;
-    double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
-    if(v_ij.dot(d) < 0)
+    if(p->h == 0) return;
+    if(radius > p->h)
     {
-        MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
+        for(int i = 0; i < (int)childParticles.size(); i++)
+        {
+            if(childParticles[i]->type == 2)
+            {
+
+                vec3 d = childParticles[i]->position - p->position;
+                double r = d.length();
+                if(r < p->h)
+                {
+                    vec3 acc = vec3(0,0,0);
+
+                    vec3 v_i = p->velocity;
+                    vec3 v_j = childParticles[i]->velocity;
+                    vec3 v_ij = v_i - v_j;
+
+                    double h_i = p->h;
+                    double h_j = childParticles[i]->h;
+                    double h_ij = (h_i + h_j) / 2.0;
+
+                    double rho_i = p->rho;
+                    double rho_j = childParticles[i]->rho;
+
+                    double P_i = p->P;
+                    double P_j = childParticles[i]->P;
+
+                    double c_i = sqrt(Constants::GAMMA * P_i / rho_i);
+                    double c_j = sqrt(Constants::GAMMA * P_i / rho_i);
+                    double c_ij = (c_i + c_j) / 2.0;
+
+                    //Pressure force
+                    //Monaghan (1992)
+                    acc += - childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * kernel::gradientCubicSplineKernel(d, h_i);
+
+                    //Artificial viscosity
+                    //Monaghan & Gingold (1983)
+                    double MU_ij = 0.0;
+                    double alpha = 0.5;
+                    double beta = 1;
+                    double eta = 0.01;
+                    double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
+                    if(v_ij.dot(d) < 0)
+                    {
+                        MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
+                    }
+                    acc += -childParticles[i]->mass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
+
+                    //Internal energy
+                    p->dUdt += 1.0 / 2.0 * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+
+                    if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) acc = vec3(0,0,0);
+
+                    p->acc += acc;
+                }
+            }
+        }
     }
-    //std::cout << -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij) << std::endl;
-    acc += -gasMass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
-
-    //Internal energy
-    newparticle->dUdt += 1.0 / 2.0 * gasMass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
-
-    if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) return vec3(0,0,0);
-
-    return acc;
+    else
+    {
+        if(parent == nullptr) return;
+        if(memSafeMode)
+        {
+            if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) 
+            {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
+            }
+        }
+        parent->calcSPHForce(p);
+    }
 }
 
 void Node::calculateGravityForce(Particle* newparticle, double softening, double theta) const
@@ -238,15 +282,6 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
             }
             
             newparticle->acc += gravityAcceleration;
-
-            if (r < newparticle->h * 2)
-            {
-                if (this->particle->type == 2 && newparticle->type == 2)
-                {
-                    vec3 sphForce = calcSPHForce(newparticle);
-                    newparticle->acc += sphForce;
-                }
-            }
         }
     }
     else
@@ -283,15 +318,6 @@ void Node::calculateGravityForce(Particle* newparticle, double softening, double
             }
             
             newparticle->acc += gravityAcceleration;
-
-            if (r < newparticle->h * 2)
-            {
-                if (newparticle->type == 2 && gasMass > 0)
-                {
-                    vec3 sphForce = calcSPHForce(newparticle);
-                    newparticle->acc += sphForce;
-                }
-            }
         }
         else
         { 
@@ -326,16 +352,6 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
         return;
     }
 
-    if((int)particles.size() < cores*100)
-    {
-        for (size_t i = 0; i < particles.size(); i++)
-        {
-            if (!particles[i]) continue;
-            insert(particles[i]);
-        }
-        return;
-    }
-
     isLeaf = false;
 
     for (int i = 0; i < 8; i++)
@@ -356,7 +372,7 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
     double total_position_mass_y = 0.0;
     double total_position_mass_z = 0.0;
 
-    int max_threads = cores > 0 ? cores : omp_get_max_threads();
+    int max_threads = cores;
     std::vector<std::vector<std::vector<Particle*>>> thread_octants(max_threads, std::vector<std::vector<Particle*>>(8));
 
     int chunk_size = static_cast<int>(particles.size() / (max_threads * (depth + 1)));
@@ -377,20 +393,8 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
             total_mass += p->mass;
             if (p->type == 2) {
                 total_gasMass += p->mass;
+                #pragma omp atomic
                 gasMass += p->mass;
-                if (gasMass > 0) 
-                {
-                    mVel = (mVel * (gasMass - p->mass) + p->velocity * p->mass) / gasMass;
-                    /*if (newParticle->rho > 0) {
-                        mRho = (mRho * (gasMass - newParticle->mass) + newParticle->rho * newParticle->mass) / gasMass;
-                    }
-                    if (newParticle->P > 0) {
-                        mP = (mP * (gasMass - newParticle->mass) + newParticle->P * newParticle->mass) / gasMass;
-                    }
-                    if (newParticle->h > 0) {
-                        mH = (mH * (gasMass - newParticle->mass) + newParticle->h * newParticle->mass) / gasMass;
-                    }*/
-                }
             }
 
 
@@ -431,164 +435,6 @@ void Node::insert(const std::vector<Particle*> particles, int cores)
 
 }
 
-
-
-std::vector<int> Node::zuweiseKerne(Node* children[], size_t size, int gesamtKerne) {
-    long long gesamteArbeitslast = 0;
-
-    #pragma omp parallel for reduction(+:gesamteArbeitslast)
-    for (size_t i = 0; i < size; ++i) {
-        if (children[i]) {
-            gesamteArbeitslast += children[i]->childParticles.size();
-        }
-    }
-
-    if (gesamteArbeitslast == 0) {
-        return std::vector<int>(size, 0);
-    }
-
-    std::vector<int> zuweisungen(size, 0);
-    std::vector<std::pair<double, int>> gebrocheneTeile(size);
-
-    #pragma omp parallel for
-    for (size_t i = 0; i < size; ++i) {
-        if (children[i]) {
-            double exakt = (static_cast<double>(children[i]->childParticles.size()) / gesamteArbeitslast) * gesamtKerne;
-            zuweisungen[i] = static_cast<int>(std::floor(exakt));
-            double gebrochen = exakt - std::floor(exakt);
-            gebrocheneTeile[i] = {gebrochen, static_cast<int>(i)};
-        } else {
-            zuweisungen[i] = 0;
-            gebrocheneTeile[i] = {0.0, static_cast<int>(i)};
-        }
-    }
-
-    int sumZuweisungen = std::accumulate(zuweisungen.begin(), zuweisungen.end(), 0);
-    int verbleibend = gesamtKerne - sumZuweisungen;
-
-    if (verbleibend > 0) {
-        std::sort(gebrocheneTeile.begin(), gebrocheneTeile.end(),
-                  [](const std::pair<double, int>& a, const std::pair<double, int>& b) -> bool {
-                      return a.first > b.first;
-                  });
-
-        for (const auto& teil : gebrocheneTeile) {
-            if (verbleibend <= 0)
-                break;
-            zuweisungen[teil.second] += 1;
-            verbleibend -= 1;
-        }
-    }
-
-    return zuweisungen;
-}
-
-
-void Node::insert(Particle* newParticle) 
-{
-    if (!newParticle) 
-    {
-        std::cerr << "Error: Particle to insert is null" << std::endl;
-        return;
-    }
-
-    // Check if the particle is within the bounds of the current node
-    if (newParticle->position.x < position.x - radius || newParticle->position.x > position.x + radius ||
-        newParticle->position.y < position.y - radius || newParticle->position.y > position.y + radius ||
-        newParticle->position.z < position.z - radius || newParticle->position.z > position.z + radius) 
-    {
-        //std::cerr << "Warning: Particles are outside the bounds and will not be properly considered" << std::endl;
-        return;
-    }
-    
-    //add the particle to the childParticles vector
-    childParticles.push_back(newParticle);
-
-    // if the node is a leaf node
-    if (isLeaf) 
-    {
-        // if the node has no particle
-        if (!particle) {
-            // set the particle to the node
-            particle = newParticle;
-            particle->node = this;
-        }
-        // if the node has a particle
-        else 
-        {
-            // create the children of the node
-            for (int i = 0; i < 8; i++) 
-            {
-                children[i] = new Node();
-                // setup the node properties
-                children[i]->position = position + vec3(
-                    radius * (i & 1 ? 0.5 : -0.5),
-                    radius * (i & 2 ? 0.5 : -0.5),
-                    radius * (i & 4 ? 0.5 : -0.5));
-                // std::cout << children[i]->position << std::endl;
-                children[i]->radius = radius / 2;
-                children[i]->depth = depth + 1;
-                children[i]->parent = this;
-            }
-
-            // get the octant of the particle
-            int octant = getOctant(particle);
-            
-            // insert the particle in the corresponding octant
-            if (octant != -1) 
-            {
-                children[octant]->insert(particle);
-            }
-            // get the octant of the new particle
-            // insert the particle in the corresponding octant
-            // get the octant of the particle
-            octant = getOctant(newParticle);
-            if (octant != -1) 
-            {
-                children[octant]->insert(newParticle);
-            }
-
-            // set the node as not a leaf node
-            isLeaf = false;
-            // set the particle to null
-            particle = nullptr;
-        }
-    }
-    // if the node is not a leaf node
-    else 
-    {
-        // get the octant of the particle
-        int octant = getOctant(newParticle);
-        if (octant != -1) 
-        {
-            children[octant]->insert(newParticle);
-        }
-    }
-    // Update the center of mass and mass
-    mass += newParticle->mass;
-    if(newParticle->type == 2)
-    {
-        gasMass += newParticle->mass;
-        //calc m Node properties
-        if (gasMass > 0) 
-        {
-            mVel = (mVel * (gasMass - newParticle->mass) + newParticle->velocity * newParticle->mass) / gasMass;
-            /*if (newParticle->rho > 0) {
-                mRho = (mRho * (gasMass - newParticle->mass) + newParticle->rho * newParticle->mass) / gasMass;
-            }
-            if (newParticle->P > 0) {
-                mP = (mP * (gasMass - newParticle->mass) + newParticle->P * newParticle->mass) / gasMass;
-            }
-            if (newParticle->h > 0) {
-                mH = (mH * (gasMass - newParticle->mass) + newParticle->h * newParticle->mass) / gasMass;
-            }*/
-        }
-    }
-
-    centerOfMass = (centerOfMass * (mass - newParticle->mass) + newParticle->position * newParticle->mass) / mass;
-}
-
-
 int Node::getOctant(Particle* newParticle) 
 {
     if(!newParticle) return -1;
@@ -596,8 +442,7 @@ int Node::getOctant(Particle* newParticle)
     if (newParticle->position.x < position.x - radius || newParticle->position.x > position.x + radius ||
         newParticle->position.y < position.y - radius || newParticle->position.y > position.y + radius ||
         newParticle->position.z < position.z - radius || newParticle->position.z > position.z + radius) {
-        //std::cout << "Particle is outside the bounds" << std::endl;
-        return -1; // Particle is outside the bounds
+        return -1;
     }
 
     int octant = 0;
@@ -608,99 +453,86 @@ int Node::getOctant(Particle* newParticle)
     return octant;
 }
 
-//consider only the gas particles and th gasMass
-void Node::calcGasDensity(double massInH)
+void Node::calcDensity(int N, Particle* p)
 {
-    if(gasMass == 0) return;
-
-    //check if the parent ist not expired
-    if(parent != nullptr)
+    if (childParticles.size() <= (size_t)N)
     {
-
-        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
-            std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
-            return;
-        }
-
-        //go upwards the tree until the mass of the node is closest to  massInH
-        if(gasMass <  massInH && parent)	//if the mass of the node is smaller than massInH and the node has a parent
+        if (parent != nullptr)
         {
-            //stop if the current gasMass is closer to massInH than the parent gasMass
-            double massDifference =  massInH - gasMass;
-            double gasMass = parent->gasMass;
-            double parentMassDifference =  massInH - gasMass;
-            if(std::abs(massDifference) > std::abs(parentMassDifference))
-            {
-                parent->calcGasDensity( massInH);
+            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
             }
+            parent->calcDensity(N, p);
         }
-        //stop if the current gasMass is closer to  massInH than the parent gasMass
-        double massDifference =  massInH - gasMass;
-        double parentMassDifference =  massInH - parent->gasMass;
-        if(std::abs(massDifference) < std::abs(parentMassDifference) && gasMass != 0)
+        return;
+    }
+
+    int gasN = 0;
+    for (auto* particle : childParticles)
+    {
+        gasN += (particle->type == 2);
+    }
+
+    if (gasN < N)
+    {
+        if (parent != nullptr)
         {
-            //calculate h for all the child particles in the node
-            #pragma omp parallel for 
-            for (size_t i = 0; i < childParticles.size(); i++)
-            {
-                if(reinterpret_cast<std::uintptr_t>(childParticles[i]) < 0x1000) {
-                    std::cerr << "Error (calcGasDensity): childParticle pointer is invalid (address: " << childParticles[i] << ")" << std::endl;
-                    continue;
-                }
-
-                if(childParticles[i]->type == 2)
-                {
-                    childParticles[i]->h = radius * 2;
-                }
+            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
             }
-
-            //calculate the rho for all the particles in the node
-            double rho = 0;
-            #pragma omp parallel for
-            for(size_t i = 0; i < childParticles.size(); i++)
-            {
-                if(childParticles[i]->type == 2)
-                {
-                    double drho = childParticles[i]->mass * kernel::cubicSplineKernel(vec3(childParticles[i]->position - centerOfMass).length(), childParticles[i]->h);
-                    rho += drho;
-                }
-            }
-
-            //add the new rho to all the particles in the node
-            #pragma omp parallel for
-            for(size_t i = 0; i < childParticles.size(); i++)
-            {
-                if(childParticles[i]->type == 2)
-                {
-                    childParticles[i]->rho = rho;
-                    //calc P, P = (gamma-1)*u*rho
-                    childParticles[i]->P = (Constants::GAMMA - 1.0) * childParticles[i]->U * childParticles[i]->rho;
-                    //calc T, T = (gamma-1)*u*prtn / (bk)
-                    childParticles[i]->T = (Constants::GAMMA - 1.0) * childParticles[i]->U * Constants::prtn * childParticles[i]->mu / (Constants::k_b);
-                }
-            }
+            parent->calcDensity(N, p);
         }
+        return;
+    }
+
+    using ParticleDist = std::pair<double, Particle*>;
+    std::vector<ParticleDist> distances;
+
+    for (auto* particle : childParticles)
+    {
+        if (particle == p || particle->type != 2) continue;
+        distances.emplace_back((particle->position - p->position).length(), particle);
+    }
+
+    if ((int)distances.size() > N)
+    {
+        std::nth_element(distances.begin(), distances.begin() + N, distances.end());
+        distances.resize(N);
+    }
+
+    double maxDistance = 0;
+    for (const auto& [dist, particle] : distances)
+    {
+        maxDistance = std::max(maxDistance, dist);
+    }
+    p->h = maxDistance;
+
+    p->rho = 0;
+    for (const auto& [dist, particle] : distances)
+    {
+        p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
     }
 }
 
 void Node::calcVisualDensity(double radiusDensityEstimation) 
 {
     if(parent != nullptr) {
-
-        // Additional check for the validity of the parent pointer
-        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) { // Example invalid address
+        if(memSafeMode)
+        {
+        if(reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
             std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
             return;
         }
-        if(reinterpret_cast<std::uintptr_t>(parent) == 0x4433c6b8197e3a36 || reinterpret_cast<std::uintptr_t>(parent) == 0x445a2118c02e3386) { // Example invalid address
+        if(reinterpret_cast<std::uintptr_t>(parent) == 0x4433c6b8197e3a36 || reinterpret_cast<std::uintptr_t>(parent) == 0x445a2118c02e3386) {
             std::cerr << "Error: specific adress (address: " << parent << ")" << std::endl;
             return;
         }
+        }   
 
-
-        // Potential Issue: 'radius' is used before it's defined
         double radiusDifference = radiusDensityEstimation - radius;
-        double parentRadius = parent->radius; // 'radius' is defined here
+        double parentRadius = parent->radius;
         double parentRadiusDifference = radiusDensityEstimation - parentRadius;
 
         if(std::abs(radiusDifference) > std::abs(parentRadiusDifference) && parent) {
@@ -713,18 +545,18 @@ void Node::calcVisualDensity(double radiusDensityEstimation)
 
             if(density == 0 || density == INFINITY) return;
 
-            size_t numChildren = childParticles.size(); // Assuming childParticles is a std::vector
+            size_t numChildren = childParticles.size();
             for (size_t i = 0; i < numChildren; ++i) {
                 Particle* currentParticle = childParticles[i];
-                
-                // Check if currentParticle is valid
+                if(memSafeMode)
+                { 
                 if (reinterpret_cast<std::uintptr_t>(currentParticle) < 0x100000) {
                     // Handle invalid particle address
                     continue;
                 }
+                }
 
-                // Proceed with calculations using currentParticle
-                childParticles[i]->visualDensity = density; // Crash occurs here
+                childParticles[i]->visualDensity = density;
             }
         }
     }

@@ -57,6 +57,7 @@ public:
 
     bool starFormation = false;
     bool coolingEnabled = false;
+    bool SNFeedbackEnabled = false;
 
     //Visual density, for all particles, just for visualization, beacuse the real density is only calculated for Gas particles, has no physical meaning
     double visualDensityRadius; //in m

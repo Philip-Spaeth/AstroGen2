@@ -1,5 +1,6 @@
 #include <iostream>
 #include "Simulation.h"
+#include <omp.h>
 
 int main()
 {

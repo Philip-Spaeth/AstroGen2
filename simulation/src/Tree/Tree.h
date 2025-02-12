@@ -20,8 +20,12 @@ public:
     Node* root;
     
     void buildTree();
-    void calculateForces();
+    
+    void calculateGravity();
+    void calculateSPH();
+    
     double calcTreeWidth();
+
     void calcVisualDensity();
     void calcGasDensity();
 };

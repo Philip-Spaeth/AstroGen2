@@ -13,12 +13,6 @@ Tree::~Tree()
 {
     delete root;
     root = nullptr;
-
-    /* int max_threads = omp_get_max_threads();
-    omp_set_num_threads(max_threads);
-    omp_set_nested(1);
-
-    root->deleteTreeParallel(max_threads); */
 }
 
 void Tree::buildTree()
@@ -32,21 +26,11 @@ void Tree::buildTree()
     root->radius = calcTreeWidth();
     root->depth = 0;
     
-    if(false)
-    {
-        for (int i = 0; i < simulation->numberOfParticles; i++)
-        {
-            root->insert(simulation->particles[i]);
-        }
-    }
-    else
-    {
-        int max_threads = omp_get_max_threads();
-        omp_set_num_threads(max_threads);
-        omp_set_nested(1);
+    int max_threads = omp_get_max_threads();
+    omp_set_num_threads(max_threads);
+    omp_set_nested(1);
         
-        root->insert(simulation->particles, max_threads);
-    }
+    root->insert(simulation->particles, max_threads);
     
     //end Time
     auto end = std::chrono::high_resolution_clock::now();
@@ -54,13 +38,12 @@ void Tree::buildTree()
     //std::cout << "Tree built in " << elapsed_seconds.count() << "s" << std::endl;
 }
 
-void Tree::calculateForces() 
+void Tree::calculateGravity() 
 {
     const int numThreads = std::thread::hardware_concurrency();
-    omp_set_num_threads(numThreads);  // Setze die Anzahl der OpenMP-Threads
+    omp_set_num_threads(numThreads);
 
-    // Erstelle eine lokale Kopie von numberOfParticles
-    int numParticles = simulation->numberOfParticles;
+    int numParticles = simulation->particles.size();
 
    #pragma omp parallel for
     for (int i = 0; i < numParticles; ++i) 
@@ -75,13 +58,35 @@ void Tree::calculateForces()
         if (simulation->globalTime == p->nextIntegrationTime) 
         {
             p->acc = vec3(0.0, 0.0, 0.0);
-            // Berechne die Gravitationskraft
             root->calculateGravityForce(p, simulation->e0, simulation->theta);
+        }
+    }
+}
+
+void Tree::calculateSPH() 
+{
+    const int numThreads = std::thread::hardware_concurrency();
+    omp_set_num_threads(numThreads);
+
+    int numParticles = simulation->particles.size();
+
+    #pragma omp parallel for
+    for (int i = 0; i < numParticles; ++i) 
+    {
+        Particle* p = simulation->particles[i];
+        if(!p) continue;
+        if(!root)
+        {
+            std::cerr << "Error: Root is not initialized." << std::endl;
+            continue;
+        }
+        if (simulation->globalTime == p->nextIntegrationTime) 
+        {
+            //root->calculateSPHForce(p, simulation->e0, simulation->theta);
         }
     }
 
 }
-
 
 double Tree::calcTreeWidth()
 {
@@ -118,20 +123,8 @@ double Tree::calcTreeWidth()
 
 void Tree::calcGasDensity()
 {
-    //set h to 0 for all particles
-    const int numParticles = simulation->numberOfParticles; // lokal speichern
     #pragma omp parallel for
-    for (int i = 0; i < numParticles; i++) // Schleifenbedingungen sind jetzt mit einem konstanten Wert
-    { 
-        if(simulation->particles[i] != nullptr)
-        {
-            if(simulation->particles[i]->type == 2)
-            {
-                simulation->particles[i]->h = 0;
-            }
-        }
-    }
-    for (int i = 0; i < numParticles; i++)
+    for (int i = 0; i < (int)simulation->particles.size(); i++)
     {
         if(simulation->particles[i] != nullptr)
         {
@@ -139,10 +132,9 @@ void Tree::calcGasDensity()
             {
                 if (simulation->particles[i]->node)
                 {
-                    if(simulation->particles[i]->h == 0)
-                    {
-                        simulation->particles[i]->node->calcGasDensity(simulation->massInH);
-                    }
+                    simulation->particles[i]->node->calcDensity(64, simulation->particles[i]);
+                    simulation->particles[i]->P = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * simulation->particles[i]->rho;
+                    simulation->particles[i]->T = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * Constants::prtn * simulation->particles[i]->mu / (Constants::k_b);
                 }
             }
         }
@@ -151,24 +143,23 @@ void Tree::calcGasDensity()
 
 void Tree::calcVisualDensity()
 {
-    // Set visualDensity to 0 for all particles
-    const int numParticles = simulation->numberOfParticles; // lokal speichern
+    const int numParticles = simulation->numberOfParticles;
     #pragma omp parallel for
-    for (int i = 0; i < numParticles; i++) // Schleifenbedingungen sind jetzt mit einem konstanten Wert
+    for (int i = 0; i < numParticles; i++)
     { 
         if(!simulation->particles[i]) continue;
         simulation->particles[i]->visualDensity = 0;
     }
 
     #pragma omp parallel for
-    for (int i = 0; i < numParticles; i++) // Schleifenbedingungen sind jetzt mit einem konstanten Wert
+    for (int i = 0; i < numParticles; i++)
     { 
         if(!simulation->particles[i]) continue;
         if(simulation->particles[i]->visualDensity != 0)
         {
             continue;
         }
-        if (simulation->particles[i]->node) // Convert weak_ptr to shared_ptr for access
+        if (simulation->particles[i]->node)
         {
             simulation->particles[i]->node->calcVisualDensity(simulation->visualDensityRadius);
         }

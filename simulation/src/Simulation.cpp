@@ -78,9 +78,8 @@ bool Simulation::init()
         }
     }
     //shuffle the particles to get a random distribution
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(particles.begin(), particles.end(), g);
+    //std::mt19937 g(42); 
+    //std::shuffle(particles.begin(), particles.end(), g);
 
     //Log::saveVelocityCurve(particles, numberOfParticles);
     Log::startProcess("build tree");
@@ -88,17 +87,19 @@ bool Simulation::init()
     tree->buildTree();
     std::cout << "\nInitial tree size: " << std::fixed << std::scientific << std::setprecision(1) << tree->root->radius <<"m"<< std::endl;
     
-    Log::startProcess("Visual Density");
     visualDensityRadius = tree->root->radius / 100000;
     //calculate the visualDensity, just for visualization
     tree->calcVisualDensity();
     //calculate the gas density for SPH
-    Log::startProcess("SPH density and update");
+    Log::startProcess("density");
     tree->calcGasDensity();
 
     // Initial force calculation
-    Log::startProcess("Force Calculation");
-    tree->calculateForces();
+    Log::startProcess("Gravity");
+    tree->calculateGravity();
+
+    Log::startProcess("SPH Force");
+    tree->calculateSPH();
     
     //delete the tree
     Log::startProcess("delete tree");
@@ -241,48 +242,52 @@ void Simulation::run()
         Tree* tree = new Tree(this);
         tree->buildTree();
 
-        Log::startProcess("Visual Density");
         tree->calcVisualDensity();
-        Log::startProcess("SPH density and update");
+        Log::startProcess("density");
         tree->calcGasDensity();
-        
-        Log::startProcess("Force Calculation");
-        tree->calculateForces();
 
+        Log::startProcess("SN-feedback");
         //SN pending
-        for (int i = 0; i < (int)particles.size(); i++)
+        if(SNFeedbackEnabled)
         {
-            if (!particles[i]) {continue;}
-            if (particles[i]->SN_pending)
+            for (int i = 0; i < (int)particles.size(); i++)
             {
-                if(particles[i]->node)
+                if (!particles[i]) {continue;}
+                if (particles[i]->SN_pending)
                 {
-                    particles[i]->node->SNFeedback(particles[i], 1e51, massInH);
-                    particles[i]->SN_pending = false;
-
-                    auto it = std::find(particles.begin(), particles.end(), particles[i]);
-                    if (it != particles.end()) 
+                    if(particles[i]->node)
                     {
-                        delete *it;
-                        #pragma omp critical
+                        particles[i]->node->SNFeedback_Kawata(particles[i], 1e51, massInH, 4.0, 0.9);
+                        particles[i]->SN_pending = false;
+
+                        auto it = std::find(particles.begin(), particles.end(), particles[i]);
+                        if (it != particles.end()) 
                         {
-                            particles.erase(it);
+                            delete *it;
+                            #pragma omp critical
+                            {
+                                particles.erase(it);
+                            }
                         }
                     }
                 }
             }
         }
 
+        Log::startProcess("Gravity");
+        tree->calculateGravity();
+
+        Log::startProcess("SPH Force");
+        tree->calculateSPH();
+
         // Second kick
         Log::startProcess("second kick");
         sfr->totalSFR = 0;
         double newStarsMass = 0;
-        //#pragma omp parallel for
         for (int i = 0; i < (int)particles.size(); i++)
         {
             if (!particles[i]) 
             {
-                #pragma omp critical
                 std::cerr << "Error: Particle " << i << " is not initialized." << std::endl;
                 continue;
             }
