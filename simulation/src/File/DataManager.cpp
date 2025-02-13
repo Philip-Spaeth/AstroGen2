@@ -247,6 +247,10 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
             free(buffer);
         }
     }
+    else if (outputFormat == "gadget_LG2")
+    {
+        //not implemented yet
+    }
     else if (outputFormat == "hdf5")
     {
         //...
@@ -412,7 +416,7 @@ struct ptc {
     float vel[3];
     unsigned int id;
     float mass;
-    float u; // internal energy
+    float u;
 };
 
 bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
@@ -547,8 +551,8 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     {
         //...
     }
-    // makeGal format
-    else if (inputFormat == "makeGal")
+    // gadget legacy 2 format
+    else if (inputFormat == "gadget_LG2")
     {
         int block_size;
         io_header_1 header;
@@ -761,7 +765,7 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 
         //std::cout << "\ngadget2 snapshot sucessfully read.\n" << std::endl;
     }
-
+    //gadget 2 legacy 1 format
     else if(inputFormat == "gadget")
     {
         std::cout << "reading gadget2 snapshot ..." << std::endl;

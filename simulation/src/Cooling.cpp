@@ -30,10 +30,11 @@ void Cooling::coolingRoutine(Particle* particle)
         fr.n_He0, fr.n_Heplus, fr.n_Heplusplus, particle
     );
 
-    double netCoolingRateSI = Lambda_cgs * 1e-7 * 1e6; // [erg cm^-3 s^-1] -> [J m^-3 s^-1]
+    double netCoolingRateSI = Lambda_cgs * 1e-7 * 1e6 * 1e-4; // [erg cm^-3 s^-1] -> [J m^-3 s^-1]
     double dudt = - (netCoolingRateSI / density);
     //std::cout << std::scientific << std::setprecision(6);
     //std::cout << "lambda: " << particle->T << std::endl;
+    //std::cout << dudt * particle->timeStep / particle->U << std::endl;
     particle->dUdt += dudt;
 }
 

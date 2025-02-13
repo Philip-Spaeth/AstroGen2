@@ -257,7 +257,7 @@ void Simulation::run()
                 {
                     if(particles[i]->node)
                     {
-                        particles[i]->node->SNFeedback_Kawata(particles[i], 1e51, e_sn, f_v_sn);
+                        particles[i]->node->SNFeedback_Kawata(particles[i], 4e48, e_sn, f_v_sn);
                         particles[i]->SN_pending = false;
 
                         auto it = std::find(particles.begin(), particles.end(), particles[i]);
