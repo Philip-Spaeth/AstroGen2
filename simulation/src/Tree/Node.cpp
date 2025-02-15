@@ -117,7 +117,9 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
 
     if(radius >= p->h * 5)
     {
-        double E_SN_i = snEnergy * epsilonSN;
+        double E_SN_i = snEnergy * (1.0 / 0.12) * epsilonSN;
+        //convert form erg to J
+        E_SN_i *= 1e-7;
 
         for (int i = 0; i < (int)childParticles.size(); i++)
         {

@@ -18,7 +18,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     if(particle->mass <= 0) return;
 
     //2 × 10−25 g cm−3
-    double densityThreshold = 2e-22;
+    double densityThreshold = 1e-24;
     double temperatureThreshold = 1e4;
 
     if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
@@ -34,7 +34,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     
     if (r < p_star)
     {
-        double efficiency = 0.3;
+        double efficiency = 1;
         double starMass = efficiency * particle->mass;
         newStarMass += starMass;
 
