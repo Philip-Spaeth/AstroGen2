@@ -22,6 +22,40 @@ Simulation::Simulation()
 
 Simulation::~Simulation(){}
 
+void rotateSystemAroundX_90(std::vector<Particle*>& particles)
+{
+    // +90°: cos(+90°)=0, sin(+90°)=+1
+    double cosA =  0.0;
+    double sinA = +1.0;
+
+    for (Particle* p : particles)
+    {
+        // --- Position ---
+        double x = p->position.x;
+        double y = p->position.y;
+        double z = p->position.z;
+
+        double yNew = y * cosA - z * sinA; // = -z
+        double zNew = y * sinA + z * cosA; // = y
+
+        p->position.x = x;
+        p->position.y = yNew;
+        p->position.z = zNew;
+
+        // --- Geschwindigkeit ---
+        double vx = p->velocity.x;
+        double vy = p->velocity.y;
+        double vz = p->velocity.z;
+
+        double vyNew = vy * cosA - vz * sinA; // = -vz
+        double vzNew = vy * sinA + vz * cosA; // = vy
+
+        p->velocity.x = vx;
+        p->velocity.y = vyNew;
+        p->velocity.z = vzNew;
+    }
+}
+
 bool Simulation::init()
 {
     //load the config file
@@ -53,7 +87,20 @@ bool Simulation::init()
     Console::printSystemInfo();
     
     Log::startProcess("load IC");
+    //dataManager->loadICs(particles, this);
+    
+    dataManager->inputPath = "500k_Andromeda.gal";
     dataManager->loadICs(particles, this);
+
+    std::cout << "loaded" << std::endl;
+
+    dataManager->saveData(particles, 0, fixedTimeSteps, numParticlesOutput, fixedStep, endTime, 0.0);
+
+    std::cout << "saved" << std::endl;
+    
+    dataManager->inputPath = "../output_data/test/0.gadget_LG2";
+    std::vector<Particle*> milkyWayParticles;
+    dataManager->loadICs(milkyWayParticles, this);
 
     if((size_t)numberOfParticles != particles.size())
     {
