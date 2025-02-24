@@ -137,6 +137,22 @@ void Tree::calcGasDensity(int N_in_h)
                     simulation->particles[i]->T = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * Constants::prtn * simulation->particles[i]->mu / (Constants::k_b);
                 }
             }
+            if(simulation->particles[i]->type == 1) // stars
+            {
+                if (simulation->particles[i]->node)
+                {
+                    simulation->particles[i]->node->calcDensityPart(N_in_h, simulation->particles[i], 1);
+                    std::cout << simulation->particles[i]->rho << std::endl;
+                }
+            }
+            if(simulation->particles[i]->type == 3) // halo
+            {
+                if (simulation->particles[i]->node)
+                {
+                    simulation->particles[i]->node->calcDensityPart(N_in_h, simulation->particles[i], 3);
+                    std::cout << simulation->particles[i]->rho << std::endl;
+                }
+            }
         }
     }
 }

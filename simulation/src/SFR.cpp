@@ -18,13 +18,19 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     if(particle->mass <= 0) return;
 
     //2 × 10−25 g cm−3
-    double densityThreshold = 1e-24;
+    double densityThreshold = 2e-22;
+    double soundSpeed = sqrt(Constants::GAMMA * particle->P / particle->rho);
+    double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
+    particle->t_s = particle->h / soundSpeed;
     double temperatureThreshold = 1e4;
 
+    // check for temperature and density thresholds
     if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
 
+    // check for convergent flow and local Jeans instability
+    if (particle->div_v >= 0 && particle->t_s < tdyn) return;
+
     double c = sim->c_sfr;
-    double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
     double dt = particle->timeStep;
     
     double p_star = 1.0 - std::exp(-c * dt / tdyn);

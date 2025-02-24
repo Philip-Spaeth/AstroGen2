@@ -42,6 +42,10 @@ public:
     double U = 0; //internal energy in J/kg
     double delayedCoolingTime = 0;
     double mu = 0.58; //mean molecular weight
+    //divergence of velocity field
+    double div_v = 0;
+    //sound crossing time
+    double t_s = 0;
 
     //star formation
     double sfr = 0; //star formation rate

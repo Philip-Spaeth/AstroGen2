@@ -158,7 +158,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
 void Node::calcSPHForce(Particle* p)
 {
     if(p->h == 0) return;
-    if(radius > p->h)
+    if(radius > p->h * 2)
     {
         for(int i = 0; i < (int)childParticles.size(); i++)
         {
@@ -167,7 +167,7 @@ void Node::calcSPHForce(Particle* p)
 
                 vec3 d = childParticles[i]->position - p->position;
                 double r = d.length();
-                if(r < p->h)
+                if(r < p->h * 2)
                 {
                     vec3 acc = vec3(0,0,0);
 
@@ -512,9 +512,79 @@ void Node::calcDensity(int N, Particle* p)
     p->h = maxDistance;
 
     p->rho = 0;
+    p->div_v = 0;
     for (const auto& [dist, particle] : distances)
     {
         p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
+        vec3 d = particle->position - p->position;
+        p->div_v += particle->mass * (d / particle->rho).dot(kernel::gradientCubicSplineKernel(d, p->h));
+    }
+}
+
+
+void Node::calcDensityPart(int N, Particle* p, int type)
+{
+    if (childParticles.size() <= (size_t)N)
+    {
+        if (parent != nullptr)
+        {
+            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
+            }
+            parent->calcDensityPart(N, p, type);
+        }
+        return;
+    }
+
+    int partN = 0;
+    for (auto* particle : childParticles)
+    {
+        partN += (particle->type == type);
+    }
+
+    if (partN < N) 
+    {
+        if (parent != nullptr)
+        {
+            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
+                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
+                return;
+            }
+            parent->calcDensityPart(N, p, type);
+        }
+        return;
+    }
+
+    using ParticleDist = std::pair<double, Particle*>;
+    std::vector<ParticleDist> distances;
+
+    for (auto* particle : childParticles)
+    {
+        if (particle == p || particle->type != type) continue;
+        distances.emplace_back((particle->position - p->position).length(), particle);
+    }
+
+    if ((int)distances.size() > N)
+    {
+        std::nth_element(distances.begin(), distances.begin() + N, distances.end());
+        distances.resize(N);
+    }
+
+    double maxDistance = 0;
+    for (const auto& [dist, particle] : distances)
+    {
+        maxDistance = std::max(maxDistance, dist);
+    }
+    p->h = maxDistance;
+
+    p->rho = 0;
+    p->div_v = 0;
+    for (const auto& [dist, particle] : distances)
+    {
+        p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
+        vec3 d = particle->position - p->position;
+        p->div_v += particle->mass * (d / particle->rho).dot(kernel::gradientCubicSplineKernel(d, p->h));
     }
 }
 

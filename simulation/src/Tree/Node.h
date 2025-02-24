@@ -38,6 +38,7 @@ public:
 
     //calculate the density for all particles, without kernel approximation
     void calcVisualDensity(double radiusDensityEstimation);
+    void calcDensityPart(int N, Particle* p, int type);
 
     //SPH only for gas particles, Stars and dark matter particles are not affected
     double gasMass = 0; //mass of gas particles

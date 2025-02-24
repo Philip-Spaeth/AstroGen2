@@ -78,8 +78,8 @@ bool Simulation::init()
         }
     }
     //shuffle the particles to get a random distribution
-    //std::mt19937 g(42); 
-    //std::shuffle(particles.begin(), particles.end(), g);
+    std::mt19937 g(42); 
+    std::shuffle(particles.begin(), particles.end(), g);
 
     //Log::saveVelocityCurve(particles, numberOfParticles);
     Log::startProcess("build tree");
@@ -357,11 +357,42 @@ void Simulation::run()
                 std::cout << std::fixed << std::setprecision(2);
             }
             
-            if(globalTime == fixedStep * 10)
+            if(globalTime == fixedStep * 400)
             {
-                //Log::avg_R_sfr(particles, particles.size());
-                //Log::avg_R_U(particles, particles.size());
+                std::vector<Particle*> gasParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 2)
+                    {
+                        particles[i]->type = 2;
+                        gasParticles.push_back(particles[i]);
+                    }
+                }
+
+                std::vector<Particle*> starParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 1)
+                    {
+                        particles[i]->type = 2;
+                        starParticles.push_back(particles[i]);
+                    }
+                }
+
+                std::vector<Particle*> darkMatterParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 3)
+                    {
+                        particles[i]->type = 2;
+                        darkMatterParticles.push_back(particles[i]);
+                    }
+                }
+
+                //save particles in 3 diffrent files
             }
+            
+
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime, sfr->totalSFR);
             Log::avg_U(particles, globalTime);
