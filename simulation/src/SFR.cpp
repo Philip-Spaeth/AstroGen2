@@ -17,79 +17,28 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     if(particle->U <= 0) return;
     if(particle->mass <= 0) return;
 
-    //2 × 10−25 g cm−3
-    double densityThreshold = 2e-22;
-    double soundSpeed = sqrt(Constants::GAMMA * particle->P / particle->rho);
-    double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
-    particle->t_s = particle->h / soundSpeed;
-    double temperatureThreshold = 1e4;
+    return;
 
-    // check for temperature and density thresholds
-    if (particle->rho < densityThreshold || particle->T > temperatureThreshold) return;
-
-    // check for convergent flow and local Jeans instability
-    if (particle->div_v >= 0 && particle->t_s < tdyn) return;
-
-    double c = sim->c_sfr;
     double dt = particle->timeStep;
     
-    double p_star = 1.0 - std::exp(-c * dt / tdyn);
-    
-    static std::uniform_real_distribution<double> dist(0.0, 1.0);
-    double r = dist(rng);
-    
-    if (r < p_star)
-    {
-        double efficiency = 1;
-        double starMass = efficiency * particle->mass;
-        newStarMass += starMass;
+    double t_sfr0 = 8e16;
 
-        Particle* newStar = new Particle();
-        newStar->mass = starMass;
-        newStar->position = particle->position;
-        newStar->velocity = particle->velocity;
-        newStar->type = 1;
-        newStar->galaxyPart = particle->galaxyPart;
-        newStar->id = sim->particles.size();
+    double beta = 0.1;
+    double A0 = 1000;
 
-        if(sim->SNFeedbackEnabled)
-        {
-            double p_supernova = 0.12;
-            double r_sn = dist(rng);
-            if (r_sn < p_supernova)
-            {
-                newStar->SN_pending = true;
-                newStar->h = particle->h;
-                newStar->rho = particle->rho;
-                newStar->P = particle->P;
-                newStar->T = particle->T;
-                newStar->U = particle->U;
-                newStar->mu = particle->mu;
-            }
-            else
-            {
-                newStar->SN_pending = false;
-            }
-        }
-        
-        #pragma omp critical
-        {
-            sim->particles.push_back(newStar);
-        }
-        
-        particle->mass -= starMass;
-        const double minGasMass = 1e30;
-        if (particle->mass < minGasMass)
-        {
-            auto it = std::find(sim->particles.begin(), sim->particles.end(), particle);
-            if (it != sim->particles.end()) 
-            {
-                delete *it;
-                #pragma omp critical
-                {
-                    sim->particles.erase(it);
-                }
-            }
-        }
-    }
+    double u_c = particle->u_c;
+    double u_sn = 1e51;
+    double u_4 = 4e48;
+
+    //lamba of (rho, u_sn/A0)
+    double lamba_net = 1e-25;
+    double lambda = lamba_net / pow(particle->rho, 2);
+
+    double x_th = 1 - (A0 * (u_4 / u_sn));
+    double rho_th = (x_th / pow((1-x_th), 2)) * (beta * u_sn - ((1-beta) * u_c)) / (t_sfr0 * lambda);
+
+    //calc t_sfrt
+    double t_sfr = t_sfr0 * pow(particle->rho / rho_th, -0.5);
+
+    double m_sf = particle->mass_c * (dt / particle->t_sfrt);
 }

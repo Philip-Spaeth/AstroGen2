@@ -117,9 +117,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
 
     if(radius >= p->h * 5)
     {
-        double E_SN_i = snEnergy * (1.0 / 0.12) * epsilonSN;
-        //convert form erg to J
-        E_SN_i *= 1e-7;
+        double E_SN_i = snEnergy * epsilonSN;
 
         for (int i = 0; i < (int)childParticles.size(); i++)
         {
@@ -157,17 +155,19 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
 
 void Node::calcSPHForce(Particle* p)
 {
+    if(!p) return;
     if(p->h == 0) return;
-    if(radius > p->h * 2)
+    if(radius == 0) return;
+    if(p->type != 2) return;
+    if(radius >  2* p->h)
     {
         for(int i = 0; i < (int)childParticles.size(); i++)
         {
             if(childParticles[i]->type == 2)
             {
-
                 vec3 d = childParticles[i]->position - p->position;
                 double r = d.length();
-                if(r < p->h * 2)
+                if(r < p->h)
                 {
                     vec3 acc = vec3(0,0,0);
 
@@ -208,6 +208,7 @@ void Node::calcSPHForce(Particle* p)
 
                     //Internal energy
                     p->dUdt += 1.0 / 2.0 * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+                    //std::cout << radius << "  ,  " << p->dUdt << " , " << childParticles.size() << std::endl;
 
                     if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) acc = vec3(0,0,0);
 
@@ -512,79 +513,9 @@ void Node::calcDensity(int N, Particle* p)
     p->h = maxDistance;
 
     p->rho = 0;
-    p->div_v = 0;
     for (const auto& [dist, particle] : distances)
     {
         p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
-        vec3 d = particle->position - p->position;
-        p->div_v += particle->mass * (d / particle->rho).dot(kernel::gradientCubicSplineKernel(d, p->h));
-    }
-}
-
-
-void Node::calcDensityPart(int N, Particle* p, int type)
-{
-    if (childParticles.size() <= (size_t)N)
-    {
-        if (parent != nullptr)
-        {
-            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
-                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
-                return;
-            }
-            parent->calcDensityPart(N, p, type);
-        }
-        return;
-    }
-
-    int partN = 0;
-    for (auto* particle : childParticles)
-    {
-        partN += (particle->type == type);
-    }
-
-    if (partN < N) 
-    {
-        if (parent != nullptr)
-        {
-            if (memSafeMode && reinterpret_cast<std::uintptr_t>(parent) < 0x100000) {
-                std::cerr << "Error: parent pointer is invalid (address: " << parent << ")" << std::endl;
-                return;
-            }
-            parent->calcDensityPart(N, p, type);
-        }
-        return;
-    }
-
-    using ParticleDist = std::pair<double, Particle*>;
-    std::vector<ParticleDist> distances;
-
-    for (auto* particle : childParticles)
-    {
-        if (particle == p || particle->type != type) continue;
-        distances.emplace_back((particle->position - p->position).length(), particle);
-    }
-
-    if ((int)distances.size() > N)
-    {
-        std::nth_element(distances.begin(), distances.begin() + N, distances.end());
-        distances.resize(N);
-    }
-
-    double maxDistance = 0;
-    for (const auto& [dist, particle] : distances)
-    {
-        maxDistance = std::max(maxDistance, dist);
-    }
-    p->h = maxDistance;
-
-    p->rho = 0;
-    p->div_v = 0;
-    for (const auto& [dist, particle] : distances)
-    {
-        p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
-        vec3 d = particle->position - p->position;
-        p->div_v += particle->mass * (d / particle->rho).dot(kernel::gradientCubicSplineKernel(d, p->h));
     }
 }
 
@@ -633,4 +564,3 @@ void Node::calcVisualDensity(double radiusDensityEstimation)
         }
     }
 }
-

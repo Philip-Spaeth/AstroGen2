@@ -87,20 +87,7 @@ bool Simulation::init()
     Console::printSystemInfo();
     
     Log::startProcess("load IC");
-    //dataManager->loadICs(particles, this);
-    
-    dataManager->inputPath = "500k_Andromeda.gal";
     dataManager->loadICs(particles, this);
-
-    std::cout << "loaded" << std::endl;
-
-    dataManager->saveData(particles, 0, fixedTimeSteps, numParticlesOutput, fixedStep, endTime, 0.0);
-
-    std::cout << "saved" << std::endl;
-    
-    dataManager->inputPath = "../output_data/test/0.gadget_LG2";
-    std::vector<Particle*> milkyWayParticles;
-    dataManager->loadICs(milkyWayParticles, this);
 
     if((size_t)numberOfParticles != particles.size())
     {
@@ -404,7 +391,7 @@ void Simulation::run()
                 std::cout << std::fixed << std::setprecision(2);
             }
             
-            if(globalTime == fixedStep * 400)
+            if(false)//globalTime == fixedStep * 400)
             {
                 std::vector<Particle*> gasParticles;
                 for(int i = 0; i < (int)particles.size(); i++)
