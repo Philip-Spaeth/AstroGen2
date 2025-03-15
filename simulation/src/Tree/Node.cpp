@@ -196,8 +196,8 @@ void Node::calcSPHForce(Particle* p)
                     //Artificial viscosity
                     //Monaghan & Gingold (1983)
                     double MU_ij = 0.0;
-                    double alpha = 0.5;
-                    double beta = 1;
+                    double alpha = 1;
+                    double beta = 2;
                     double eta = 0.01;
                     double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
                     if(v_ij.dot(d) < 0)

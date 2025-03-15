@@ -48,7 +48,7 @@ void TimeIntegration::Ueuler(Particle* particle, double deltaTime)
         particle->dUdt = 0;
         return;
     }
-    //particle->U += particle->dUdt * deltaTime;
+    particle->U += particle->dUdt * deltaTime;
     particle->T = (Constants::GAMMA - 1.0) * particle->U * Constants::prtn * particle->mu / (Constants::k_b);
     //std::cout << particle->dUdt * deltaTime << "  ,  " << particle->U <<  "   ,   " << particle->dUdt * deltaTime / particle->U << "  , T: " << particle->T << std::endl;
     particle->dUdt = 0;

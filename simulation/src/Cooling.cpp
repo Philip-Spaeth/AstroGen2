@@ -14,18 +14,18 @@ struct IonizationResult {
 };
 
 struct CoolingResult {
-    double collExc_H;       // Collisional excitation (H°)
-    double collExc_HePlus;  // Collisional excitation (He+)
-    double collIon_H;       // Collisional ionization (H°)
-    double collIon_He0;     // Collisional ionization (He0)
-    double collIon_HePlus;  // Collisional ionization (He+)
-    double recomb_H;        // Recombination (H+)
-    double recomb_HePlus;   // Recombination (He+)
-    double recomb_Heplusplus; // Recombination (He++)
-    double dielRecomb_HePlus; // Dielectric recombination (He+)
-    double freeFree;        // Free-free (bremsstrahlung)
-    double invCompton;      // Inverse Compton cooling
-    double total;           // total cooling rate
+    double collExc_H = 0;       // Collisional excitation (H°)
+    double collExc_HePlus = 0;  // Collisional excitation (He+)
+    double collIon_H = 0;       // Collisional ionization (H°)
+    double collIon_He0 = 0;     // Collisional ionization (He0)
+    double collIon_HePlus = 0;  // Collisional ionization (He+)
+    double recomb_H = 0;        // Recombination (H+)
+    double recomb_HePlus = 0;   // Recombination (He+)
+    double recomb_Heplusplus = 0; // Recombination (He++)
+    double dielRecomb_HePlus = 0; // Dielectric recombination (He+)
+    double freeFree = 0;        // Free-free (bremsstrahlung)
+    double invCompton = 0;      // Inverse Compton cooling
+    double total = 0;           // total cooling rate
 };
 IonizationResult computeIonization(double n_H, double T,
                                    double Gamma_H0, double Gamma_He0, double Gamma_Heplus,
@@ -99,23 +99,23 @@ double coolingInverseCompton(double T, double n_e, double z)
 
 CoolingResult computeCoolingRates(double T, double z, const IonizationResult &ion) {
     CoolingResult cool;
+    if (T < 1e3) return cool;
     
-    cool.collExc_H       = coolingExcitation_H(T, ion.n_e, ion.n_H0);
-    cool.collExc_HePlus  = coolingExcitation_HePlus(T, ion.n_e, ion.n_Heplus);
-    cool.collIon_H       = coolingIonization_H(T, ion.n_e, ion.n_H0);
-    cool.collIon_He0     = coolingIonization_He0(T, ion.n_e, ion.n_He0);
-    cool.collIon_HePlus  = coolingIonization_HePlus(T, ion.n_e, ion.n_Heplus);
-    cool.recomb_H        = coolingRecombination_H(T, ion.n_e, ion.n_Hplus);
-    cool.recomb_HePlus   = coolingRecombination_HePlus(T, ion.n_e, ion.n_Heplus);
-    cool.recomb_Heplusplus = coolingRecombination_Heplusplus(T, ion.n_e, ion.n_Heplusplus);
-    cool.dielRecomb_HePlus = coolingDielectricRecombination_HePlus(T, ion.n_e, ion.n_Heplus);
-    cool.freeFree        = coolingFreeFree(T, ion.n_e, ion.n_Hplus, ion.n_Heplus, ion.n_Heplusplus);
-    cool.invCompton      = coolingInverseCompton(T, ion.n_e, z);
-
-    cool.total = cool.collExc_H + cool.collExc_HePlus +
-                 cool.collIon_H + cool.collIon_He0 + cool.collIon_HePlus +
-                 cool.recomb_H + cool.recomb_HePlus + cool.recomb_Heplusplus +
-                 cool.dielRecomb_HePlus + cool.freeFree + cool.invCompton;
+    cool.collExc_H = 7.50e-19 * exp(-118348.0 / T) * ion.n_e * ion.n_H0;
+    cool.collExc_HePlus = 5.54e-17 * pow(T, -0.397) * exp(-473638.0 / T) * ion.n_e * ion.n_Heplus / (1.0 + sqrt(T));
+    cool.collIon_H = 1.27e-21 * sqrt(T) * exp(-157809.0 / T) * ion.n_e * ion.n_H0;
+    cool.collIon_He0 = 9.38e-22 * sqrt(T) * exp(-285335.4 / T) * ion.n_e * ion.n_He0;
+    cool.collIon_HePlus = 4.95e-22 * sqrt(T) * exp(-631515.0 / T) * ion.n_e * ion.n_Heplus;
+    cool.recomb_H = 8.70e-27 * sqrt(T) * ion.n_e * ion.n_Hplus;
+    cool.recomb_HePlus = 1.55e-26 * pow(T, 0.3647) * ion.n_e * ion.n_Heplus;
+    cool.recomb_Heplusplus = 3.48e-26 * sqrt(T) * ion.n_e * ion.n_Heplusplus;
+    cool.dielRecomb_HePlus = 1.24e-21 * pow(T, -1.5) * exp(-470000.0 / T) * ion.n_e * ion.n_Heplus * (1 + 0.3 * exp(-94000.0 / T));
+    
+    double gaunt = 1.1 + 0.34 * exp(-pow(5.5 - log10(T), 2) / 3.0);
+    cool.freeFree = 1.42e-27 * gaunt * sqrt(T) * ion.n_e * (ion.n_Hplus + ion.n_Heplus + 4.0 * ion.n_Heplusplus);
+    cool.invCompton = 5.41e-36 * ion.n_e * T * pow((1.0 + z), 4);
+    
+    cool.total = cool.collExc_H + cool.collExc_HePlus + cool.collIon_H + cool.collIon_He0 + cool.collIon_HePlus + cool.recomb_H + cool.recomb_HePlus + cool.recomb_Heplusplus + cool.dielRecomb_HePlus + cool.freeFree + cool.invCompton;
     
     return cool;
 }
