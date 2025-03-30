@@ -62,6 +62,9 @@ public:
 
     bool SNFeedbackEnabled = false;
     double f_v_sn = 0;
+    //in sec
+    double t_delay = 0;
+    //supernova-energy per Solar-mass in erg depens on IMF in erg/solarMass
     double e_sn = 0;
 
     //Visual density, for all particles, just for visualization, beacuse the real density is only calculated for Gas particles, has no physical meaning

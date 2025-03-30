@@ -80,9 +80,12 @@ void Tree::calculateSPH()
             std::cerr << "Error: Root is not initialized." << std::endl;
             continue;
         }
-        if (simulation->globalTime == p->nextIntegrationTime) 
+        if(simulation->globalTime == p->nextIntegrationTime)
         {
-            //root->calculateSPHForce(p, simulation->e0, simulation->theta);
+            if(p->node)
+            {
+                p->node->calcSPHForce(p);
+            }
         }
     }
 
@@ -137,8 +140,25 @@ void Tree::calcGasDensity(int N_in_h)
                     simulation->particles[i]->T = (Constants::GAMMA - 1.0) * simulation->particles[i]->U * Constants::prtn * simulation->particles[i]->mu / (Constants::k_b);
                 }
             }
+/*
+            if(simulation->particles[i]->type == 1) // stars
+            {
+                if (simulation->particles[i]->node)
+                {
+                    simulation->particles[i]->node->calcDensityPart(N_in_h, simulation->particles[i], 1);
+                }
+            }
+            if(simulation->particles[i]->type == 3) // halo
+            {
+                if (simulation->particles[i]->node)
+                {
+                    simulation->particles[i]->node->calcDensityPart(N_in_h, simulation->particles[i], 3);
+                }
+            }*/
         }
+            
     }
+        
 }
 
 void Tree::calcVisualDensity()

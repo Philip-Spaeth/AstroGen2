@@ -80,7 +80,6 @@ std::string getBlockLabel(iofields block) {
     }
 }
 
-
 void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int numberTimesteps, int numberOfParticles, double deltaTime, double endTime, double currentTime)
 {
     //cut the particles to the number of particles
@@ -100,6 +99,7 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
     else if(outputFormat == "age") ending = ".age";
     else if(outputFormat == "hdf5") ending = ".hdf5";
     else if(outputFormat == "gadget") ending = ".gadget";
+    else if(outputFormat == "gadget_LG2") ending = ".gadget_LG2";
     else
     {
         std::cerr << "Unknown output data format: " << outputFormat << std::endl;
@@ -247,6 +247,161 @@ void DataManager::saveData(std::vector<Particle*> particles, int timeStep, int n
             free(buffer);
         }
     }
+    else if (outputFormat == "gadget_LG2")
+    {
+        // Header initialisieren
+        io_header_1 header;
+        memset(&header, 0, sizeof(header));
+
+        // Partikel nach Gadget-Typen gruppieren
+        std::vector<Particle*> type0, type1, type2, type3, type4, type5;
+        for (auto& p : particles) {
+            switch(p->type) {
+                case 2:  // Gas
+                    type0.push_back(p);
+                    header.npart[0]++;
+                    break;
+                case 3:  // Dunkle Materie
+                    type1.push_back(p);
+                    header.npart[1]++;
+                    break;
+                case 1:  // Sterne
+                    if(p->galaxyPart == 1) {
+                        type2.push_back(p);  // Disk-Sterne
+                        header.npart[2]++;
+                    } else if(p->galaxyPart == 2) {
+                        type3.push_back(p);  // Bulge-Sterne
+                        header.npart[3]++;
+                    } else {
+                        type4.push_back(p);  // Sonstige Sterne
+                        header.npart[4]++;
+                    }
+                    break;
+                default:
+                    type5.push_back(p);  // Unbekannte Typen
+                    header.npart[5]++;
+            }
+        }
+        header.time = currentTime;
+        header.num_files = 1;
+        for (int i = 0; i < 6; i++) {
+            header.npartTotal[i] = header.npart[i];
+            header.mass[i] = 0.0;
+        }
+
+        // --- Header-Block schreiben ---
+        // Geplante Struktur des Header-Blocks:
+        // [outer_block_size (int32)] [Label "HEAD" (4 Byte)] [nextblock (int32)]
+        // [inner_marker1 (int32)] [inner_marker2 (int32)] [header (io_header_1)] [inner_marker3 (int32)]
+        //
+        // Die Länge des zu schreibenden Datensatzes (ohne den ersten 4-Byte Marker)
+        // beträgt: 4 (Label) + 4 (nextblock) + 4 + 4 (zwei innere Marker vor dem Header)
+        //   + sizeof(header) + 4 (inner Marker nach dem Header) = sizeof(header) + 20.
+        int32_t outer_block_size = sizeof(header) + 20;
+        file.write(reinterpret_cast<char*>(&outer_block_size), sizeof(outer_block_size));
+
+        char headLabel[4] = {'H','E','A','D'};
+        file.write(headLabel, 4);
+
+        int32_t nextblock = 0;
+        file.write(reinterpret_cast<char*>(&nextblock), sizeof(nextblock));
+
+        int32_t inner_marker = sizeof(header);
+        // Zwei innere Marker vor dem Header
+        file.write(reinterpret_cast<char*>(&inner_marker), sizeof(inner_marker));
+        file.write(reinterpret_cast<char*>(&inner_marker), sizeof(inner_marker));
+
+        // Den Header schreiben
+        file.write(reinterpret_cast<char*>(&header), sizeof(header));
+
+        // Einen inneren Marker nach dem Header schreiben
+        file.write(reinterpret_cast<char*>(&inner_marker), sizeof(inner_marker));
+
+        // --- Datenblöcke schreiben ---
+        // Jeder Datenblock wird in folgender Struktur abgelegt:
+        // [outer (int32) = data_size + 16] [4-Byte Label] [nextblock (int32)]
+        // [inner_marker1 (int32) = data_size] [inner_marker2 (int32) = data_size]
+        // [Daten (data_size Byte)] [inner_marker3 (int32) = data_size]
+        auto writeBlock = [&](const auto& data, const std::string& labelStr) {
+            using T = typename std::remove_reference_t<decltype(data)>::value_type;
+            int32_t data_size = data.size() * sizeof(T);
+            int32_t outer = data_size + 16; // 8 Byte für Label + nextblock und 12 Byte für die drei inneren Marker
+            file.write(reinterpret_cast<const char*>(&outer), sizeof(outer));
+
+            char lab[4] = {0};
+            std::strncpy(lab, labelStr.c_str(), 4);
+            file.write(lab, 4);
+
+            int32_t nb = 0;
+            file.write(reinterpret_cast<const char*>(&nb), sizeof(nb));
+
+            // Zwei innere Marker vor den Daten
+            file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+            file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+
+            // Die eigentlichen Daten schreiben
+            file.write(reinterpret_cast<const char*>(data.data()), data_size);
+
+            // Einen inneren Marker nach den Daten schreiben
+            file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+        };
+
+        // Hilfsfunktion: Daten aller Partikel (aller Typen) in der richtigen Reihenfolge zusammenführen
+        auto writeAllTypes = [&](auto getData) {
+            std::vector<float> data;
+            for (auto* p : type0) getData(p, data);
+            for (auto* p : type1) getData(p, data);
+            for (auto* p : type2) getData(p, data);
+            for (auto* p : type3) getData(p, data);
+            for (auto* p : type4) getData(p, data);
+            for (auto* p : type5) getData(p, data);
+            return data;
+        };
+
+        // Positionsblock: Positionen in [KPC]
+        std::vector<float> positions = writeAllTypes([](Particle* p, auto& data) {
+            data.push_back(p->position.x / Units::KPC);
+            data.push_back(p->position.y / Units::KPC);
+            data.push_back(p->position.z / Units::KPC);
+        });
+        writeBlock(positions, "POS");
+
+        // Geschwindigkeitsblock: Geschwindigkeiten in [KMS]
+        std::vector<float> velocities = writeAllTypes([](Particle* p, auto& data) {
+            data.push_back(p->velocity.x / Units::KMS);
+            data.push_back(p->velocity.y / Units::KMS);
+            data.push_back(p->velocity.z / Units::KMS);
+        });
+        writeBlock(velocities, "VEL");
+
+        // ID-Block: IDs aller Partikel (in der gleichen Reihenfolge wie oben)
+        std::vector<unsigned int> ids;
+        for (auto* p : type0) ids.push_back(p->id);
+        for (auto* p : type1) ids.push_back(p->id);
+        for (auto* p : type2) ids.push_back(p->id);
+        for (auto* p : type3) ids.push_back(p->id);
+        for (auto* p : type4) ids.push_back(p->id);
+        for (auto* p : type5) ids.push_back(p->id);
+        writeBlock(ids, "ID  ");
+
+        // Massenblock: Massen normiert auf [MSUN * 1e10]
+        std::vector<float> massData = writeAllTypes([](Particle* p, auto& data) {
+            data.push_back(p->mass / (Units::MSUN * 1e10));
+        });
+        writeBlock(massData, "MASS");
+
+        // Block für interne Energie (nur für Gaspartikel)
+        if (!type0.empty()) {
+            std::vector<float> uData;
+            for (auto* p : type0) {
+                uData.push_back(p->U / 1e6);
+            }
+            writeBlock(uData, "U   ");
+        }
+
+        file.close();
+    }
+
     else if (outputFormat == "hdf5")
     {
         //...
@@ -412,7 +567,7 @@ struct ptc {
     float vel[3];
     unsigned int id;
     float mass;
-    float u; // internal energy
+    float u;
 };
 
 bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
@@ -547,8 +702,8 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
     {
         //...
     }
-    // makeGal format
-    else if (inputFormat == "makeGal")
+    // gadget legacy 2 format
+    else if (inputFormat == "gadget_LG2")
     {
         int block_size;
         io_header_1 header;
@@ -560,9 +715,7 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
         file.read(label, 4);
         int nextblock;
         file.read(reinterpret_cast<char*>(&nextblock), sizeof(nextblock));
-
         file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
-
         file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         file.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
@@ -761,7 +914,7 @@ bool DataManager::loadICs(std::vector<Particle*>& particles, Simulation* sim)
 
         //std::cout << "\ngadget2 snapshot sucessfully read.\n" << std::endl;
     }
-
+    //gadget 2 legacy 1 format
     else if(inputFormat == "gadget")
     {
         std::cout << "reading gadget2 snapshot ..." << std::endl;
@@ -1330,6 +1483,7 @@ bool DataManager::loadConfig(const std::string& filename, Simulation* simulation
                 else if (key == "c_sfr") simulation->c_sfr = std::stod(value);
                 else if (key == "SN_feedback") {if(value == "true" || value == "True") {simulation->SNFeedbackEnabled = true;}else if(value == "false" || value == "False") {simulation->SNFeedbackEnabled = false;}}
                 else if (key == "f_v") simulation->f_v_sn = std::stod(value);
+                else if (key == "t_delay") simulation->t_delay = std::stod(value) * 31557600 * 1e6;
                 else if (key == "e_SN") simulation->e_sn = std::stod(value);
                 else if (key == "cooling") {if(value == "true" || value == "True") {simulation->coolingEnabled = true;}else if(value == "false" || value == "False") {simulation->coolingEnabled = false;}}
                 else if (key == "H0") simulation->H0 = std::stod(value);

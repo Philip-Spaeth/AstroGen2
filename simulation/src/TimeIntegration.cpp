@@ -43,6 +43,9 @@ void TimeIntegration::Ueuler(Particle* particle, double deltaTime)
     }
     if((particle->U + particle->dUdt * deltaTime) < 0)
     {
+        particle->T = 0.85e4;
+        particle->U = (particle->T * Constants::k_b) / ((Constants::GAMMA - 1.0) * Constants::prtn * particle->mu);
+        particle->dUdt = 0;
         return;
     }
     particle->U += particle->dUdt * deltaTime;
