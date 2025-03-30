@@ -257,18 +257,8 @@ void Simulation::run()
                 {
                     if(particles[i]->node)
                     {
-                        particles[i]->node->SNFeedback_Kawata(particles[i], 4e48, e_sn, f_v_sn);
+                        particles[i]->node->SNFeedback_Kawata(particles[i], e_sn * (1.0/0.12), f_v_sn, t_delay);
                         particles[i]->SN_pending = false;
-
-                        auto it = std::find(particles.begin(), particles.end(), particles[i]);
-                        if (it != particles.end()) 
-                        {
-                            delete *it;
-                            #pragma omp critical
-                            {
-                                particles.erase(it);
-                            }
-                        }
                     }
                 }
             }
@@ -353,7 +343,8 @@ void Simulation::run()
                     totalMass += particles[i]->mass;
                 }
                 std::cout << std::setprecision(6);
-                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << "   N: " << particles.size() << std::endl;
+                double passedGyrs = (globalTime / Units::YR) / 1e9;
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << "   N: " << particles.size() << "   gobalTime: " << std::setprecision(2) <<passedGyrs << " Gyrs" << std::setprecision(6) <<std::endl;
                 std::cout << std::fixed << std::setprecision(2);
             }
             

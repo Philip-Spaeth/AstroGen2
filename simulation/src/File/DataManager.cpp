@@ -1483,6 +1483,7 @@ bool DataManager::loadConfig(const std::string& filename, Simulation* simulation
                 else if (key == "c_sfr") simulation->c_sfr = std::stod(value);
                 else if (key == "SN_feedback") {if(value == "true" || value == "True") {simulation->SNFeedbackEnabled = true;}else if(value == "false" || value == "False") {simulation->SNFeedbackEnabled = false;}}
                 else if (key == "f_v") simulation->f_v_sn = std::stod(value);
+                else if (key == "t_delay") simulation->t_delay = std::stod(value) * 31557600 * 1e6;
                 else if (key == "e_SN") simulation->e_sn = std::stod(value);
                 else if (key == "cooling") {if(value == "true" || value == "True") {simulation->coolingEnabled = true;}else if(value == "false" || value == "False") {simulation->coolingEnabled = false;}}
                 else if (key == "H0") simulation->H0 = std::stod(value);

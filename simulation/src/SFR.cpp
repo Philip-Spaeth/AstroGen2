@@ -17,28 +17,49 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     if(particle->U <= 0) return;
     if(particle->mass <= 0) return;
 
-    return;
+    //if T > 10000 Kelvin
+    if (particle->T > 1e4);
 
+    //2 × 10−25 g cm−3 or 0.1 Hydrogen atoms per cm^3
+    double densityThreshold = 2e-22;
+    if (particle->rho < densityThreshold) return;
+
+    //convergent flow, calculted by the Tree, see node.cpp
+    if (particle->div_v > 0) return;
+
+    //jeans unstable
+    double soundspeed = sqrt(Constants::GAMMA*(particle->P / particle->rho));
+    double soundcrossingTime = particle->h / soundspeed;
+    double jeansCrit = 1.0 / sqrt(4*Constants::PI*Constants::G*particle->rho);
+    //if (soundcrossingTime < jeansCrit) return;
+
+    double c = sim->c_sfr;
+    double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
     double dt = particle->timeStep;
     
-    double t_sfr0 = 8e16;
+    double p_star = 1.0 - std::exp(-c * dt / tdyn);
+    
+    static std::uniform_real_distribution<double> dist(0.0, 1.0);
+    double r = dist(rng);
+    
+    if (r < p_star)
+    {
+        particle->type = 1;
+        newStarMass += particle->mass;
 
-    double beta = 0.1;
-    double A0 = 1000;
-
-    double u_c = particle->u_c;
-    double u_sn = 1e51;
-    double u_4 = 4e48;
-
-    //lamba of (rho, u_sn/A0)
-    double lamba_net = 1e-25;
-    double lambda = lamba_net / pow(particle->rho, 2);
-
-    double x_th = 1 - (A0 * (u_4 / u_sn));
-    double rho_th = (x_th / pow((1-x_th), 2)) * (beta * u_sn - ((1-beta) * u_c)) / (t_sfr0 * lambda);
-
-    //calc t_sfrt
-    double t_sfr = t_sfr0 * pow(particle->rho / rho_th, -0.5);
-
-    double m_sf = particle->mass_c * (dt / particle->t_sfrt);
+        if(sim->SNFeedbackEnabled)
+        {
+            double p_supernova = 0.12;
+            double r_sn = dist(rng);
+            if (r_sn < p_supernova)
+            {
+                particle->SN_pending = true;
+                particle->type = 2;
+            }
+            else
+            {
+                particle->SN_pending = false;
+            }
+        }
+    }
 }
