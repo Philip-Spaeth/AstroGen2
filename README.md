@@ -21,6 +21,8 @@ Example use case: The simulation of the merger of the Andromeda and Milky Way ga
 
 ![Unbenannt](https://github.com/user-attachments/assets/b0d95ab1-4729-4994-ae02-8854382334e0)
 
+The Plots were created with AGRender wich is compatible with the AstroGen2 Formats: https://github.com/Philip-Spaeth/AGRender
+
 ## Contributing
 We welcome contributions from the community! Whether you are fixing bugs, adding new features, or improving documentation, your help is greatly appreciated. Please submit pull requests to the main branch and ensure your code follows the project's coding standards.
 
