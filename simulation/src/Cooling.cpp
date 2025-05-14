@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include "Units.h"
 
 void Cooling::coolingRoutine(Particle* particle)
 {
@@ -30,7 +31,7 @@ void Cooling::coolingRoutine(Particle* particle)
         fr.n_He0, fr.n_Heplus, fr.n_Heplusplus, particle
     );
 
-    double netCoolingRateSI = Lambda_cgs * 1e-7 * 1e6; // [erg cm^-3 s^-1] -> [J m^-3 s^-1]
+    double netCoolingRateSI = Lambda_cgs * 1e-7 * 1e2; // [erg cm^-3 s^-1] -> [J m^-3 s^-1]
     double dudt = - (netCoolingRateSI / density);
     //std::cout << std::scientific << std::setprecision(6);
     //std::cout << "lambda: " << particle->T << std::endl;
@@ -87,7 +88,7 @@ double Cooling::coolingRatePrimordialCgs(
                  * n_e;
 
 
-    double Lambda_total = Lambda_exc + Lambda_ci + Lambda_rec + ff;
+    double Lambda_total = (Lambda_exc + Lambda_ci + Lambda_rec + ff) * Units::c_conv;
     return Lambda_total;
 }
 
