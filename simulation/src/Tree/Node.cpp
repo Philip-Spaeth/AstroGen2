@@ -16,6 +16,7 @@
 #include <limits>
 #include <iostream>
 #include <cstdint>
+#include "Units.h"
 
 Node::Node()
 {
@@ -37,7 +38,6 @@ Node::Node()
 
 Node::~Node()
 {
-    //#pragma omp parallel for
     for (int i = 0; i < 8; i++)
     {
 
@@ -96,7 +96,7 @@ void Node::deleteTreeParallel(int cores)
 }
 
 // kinematic and thermal feedback following Kawata (2001)
-void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, double f_v)
+void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double f_v, double t_delay)
 {
     if(p->h == 0) return;
     if(parent != nullptr)
@@ -109,15 +109,16 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
                 return;
             }
         }
-        if(radius < p->h * 5)
+        if((int)childParticles.size() < 200)
         {
-            parent->SNFeedback_Kawata(p, snEnergy, epsilonSN, f_v);
+            parent->SNFeedback_Kawata(p, snEnergy, f_v, t_delay);
         }
     }
 
-    if(radius >= p->h * 5)
+    if((int)childParticles.size() >= 200)
     {
-        double E_SN_i = snEnergy * epsilonSN;
+        //from erg to Joule
+        double E_SN_i_SI = snEnergy * 1e-7;
 
         for (int i = 0; i < (int)childParticles.size(); i++)
         {
@@ -130,7 +131,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
                     double w = kernel::cubicSplineKernel(r, p->h);
                     // \Delta E_{SN,j} = E_{SN,i} * (m_j / rho_g,i) * W(r_{ij}, h_{ij})
                     //    star.gasDensity ~ rho_{g,i}
-                    double deltaESN_j = E_SN_i * (childParticles[i]->mass / childParticles[i]->rho) * w;
+                    double deltaESN_j = E_SN_i_SI * (childParticles[i]->mass / childParticles[i]->rho) * w;
 
                     //kineitc fraction
                     double deltaESN_kin = f_v * deltaESN_j;
@@ -139,7 +140,8 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
                     vec3 dir = (r > 0.0) ? (d / r) : vec3{0.0, 0.0, 0.0};
                     vec3 deltaV = deltaV_mag * dir;
                     childParticles[i]->velocity += deltaV;
-
+                    
+                    if(f_v == 1.0) continue;
                     //thermal fraction
                     double deltaESN_therm = (1.0 - f_v) * deltaESN_j;
 
@@ -147,6 +149,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
                     double deltaU = deltaESN_therm / childParticles[i]->mass;
                     //std::cout << "deltaU: " << deltaU << " & :  " << deltaU / childParticles[i]->U << std::endl;
                     childParticles[i]->U += deltaU;
+                    childParticles[i]->delayedCoolingTime = t_delay;
                 }
             }
         }
@@ -155,14 +158,16 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double epsilonSN, dou
 
 void Node::calcSPHForce(Particle* p)
 {
+    if(!p) return;
     if(p->h == 0) return;
-    if(radius > p->h)
+    if(radius == 0) return;
+    if(p->type != 2) return;
+    if(radius >  2* p->h)
     {
         for(int i = 0; i < (int)childParticles.size(); i++)
         {
             if(childParticles[i]->type == 2)
             {
-
                 vec3 d = childParticles[i]->position - p->position;
                 double r = d.length();
                 if(r < p->h)
@@ -186,6 +191,7 @@ void Node::calcSPHForce(Particle* p)
                     double c_i = sqrt(Constants::GAMMA * P_i / rho_i);
                     double c_j = sqrt(Constants::GAMMA * P_i / rho_i);
                     double c_ij = (c_i + c_j) / 2.0;
+                    double unit_conv_avP = 10.0;
 
                     //Pressure force
                     //Monaghan (1992)
@@ -194,18 +200,20 @@ void Node::calcSPHForce(Particle* p)
                     //Artificial viscosity
                     //Monaghan & Gingold (1983)
                     double MU_ij = 0.0;
-                    double alpha = 0.5;
-                    double beta = 1;
+                    double alpha = 0.5 * unit_conv_avP;
+                    double beta = 0.10 * unit_conv_avP;
                     double eta = 0.01;
                     double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
                     if(v_ij.dot(d) < 0)
                     {
                         MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
                     }
-                    acc += -childParticles[i]->mass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
+                    acc += - childParticles[i]->mass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
 
                     //Internal energy
-                    p->dUdt += 1.0 / 2.0 * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j) + MU_ij) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+                    MU_ij = 0;
+                    p->dUdt += (1.0 / 2.0) * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * Units::c_conv * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+                    //std::cout << radius << "  ,  " << p->dUdt << " , " << childParticles.size() << std::endl;
 
                     if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) acc = vec3(0,0,0);
 
@@ -510,9 +518,15 @@ void Node::calcDensity(int N, Particle* p)
     p->h = maxDistance;
 
     p->rho = 0;
+    p->div_v = 0;  // Reset divergence
+
     for (const auto& [dist, particle] : distances)
     {
         p->rho += particle->mass * kernel::cubicSplineKernel(dist, p->h);
+        vec3 r_ij = p->position - particle->position;
+        vec3 v_ij = p->velocity - particle->velocity;
+        vec3 gradW = kernel::gradientCubicSplineKernel(r_ij, p->h);
+        p->div_v += particle->mass / particle->rho * v_ij.dot(gradW);
     }
 }
 
@@ -561,4 +575,3 @@ void Node::calcVisualDensity(double radiusDensityEstimation)
         }
     }
 }
-

@@ -78,8 +78,8 @@ bool Simulation::init()
         }
     }
     //shuffle the particles to get a random distribution
-    //std::mt19937 g(42); 
-    //std::shuffle(particles.begin(), particles.end(), g);
+    std::mt19937 g(42); 
+    std::shuffle(particles.begin(), particles.end(), g);
 
     //Log::saveVelocityCurve(particles, numberOfParticles);
     Log::startProcess("build tree");
@@ -257,18 +257,8 @@ void Simulation::run()
                 {
                     if(particles[i]->node)
                     {
-                        particles[i]->node->SNFeedback_Kawata(particles[i], 1e51, e_sn, f_v_sn);
+                        particles[i]->node->SNFeedback_Kawata(particles[i], e_sn * (1.0/0.12), f_v_sn, t_delay);
                         particles[i]->SN_pending = false;
-
-                        auto it = std::find(particles.begin(), particles.end(), particles[i]);
-                        if (it != particles.end()) 
-                        {
-                            delete *it;
-                            #pragma omp critical
-                            {
-                                particles.erase(it);
-                            }
-                        }
                     }
                 }
             }
@@ -353,15 +343,48 @@ void Simulation::run()
                     totalMass += particles[i]->mass;
                 }
                 std::cout << std::setprecision(6);
-                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << "   N: " << particles.size() << std::endl;
+                double passedGyrs = (globalTime / Units::YR) / 1e9;
+                std::cout << "Gas fraction: " << gasMass / totalMass * 100 << "%   Global SFR:" << sfr->totalSFR << "   N: " << particles.size() << "   gobalTime: " << std::setprecision(2) <<passedGyrs << " Gyrs" << std::setprecision(6) <<std::endl;
                 std::cout << std::fixed << std::setprecision(2);
             }
             
-            if(globalTime == fixedStep * 10)
+            if(false)//globalTime == fixedStep * 400)
             {
-                //Log::avg_R_sfr(particles, particles.size());
-                //Log::avg_R_U(particles, particles.size());
+                std::vector<Particle*> gasParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 2)
+                    {
+                        particles[i]->type = 2;
+                        gasParticles.push_back(particles[i]);
+                    }
+                }
+
+                std::vector<Particle*> starParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 1)
+                    {
+                        particles[i]->type = 2;
+                        starParticles.push_back(particles[i]);
+                    }
+                }
+
+                std::vector<Particle*> darkMatterParticles;
+                for(int i = 0; i < (int)particles.size(); i++)
+                {
+                    if(particles[i]->type == 3)
+                    {
+                        particles[i]->type = 2;
+                        darkMatterParticles.push_back(particles[i]);
+                    }
+                }
+
+                //save particles in 3 diffrent files
+                //...
             }
+            
+
             Log::total_Mass(particles, globalTime);
             Log::sfr(particles, globalTime, sfr->totalSFR);
             Log::avg_U(particles, globalTime);
