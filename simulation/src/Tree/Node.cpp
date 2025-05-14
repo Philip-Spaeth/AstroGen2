@@ -16,6 +16,7 @@
 #include <limits>
 #include <iostream>
 #include <cstdint>
+#include "Units.h"
 
 Node::Node()
 {
@@ -140,7 +141,7 @@ void Node::SNFeedback_Kawata(Particle* p, double snEnergy, double f_v, double t_
                     vec3 deltaV = deltaV_mag * dir;
                     childParticles[i]->velocity += deltaV;
                     
-                    if(f_v = 1.0) continue;
+                    if(f_v == 1.0) continue;
                     //thermal fraction
                     double deltaESN_therm = (1.0 - f_v) * deltaESN_j;
 
@@ -190,6 +191,7 @@ void Node::calcSPHForce(Particle* p)
                     double c_i = sqrt(Constants::GAMMA * P_i / rho_i);
                     double c_j = sqrt(Constants::GAMMA * P_i / rho_i);
                     double c_ij = (c_i + c_j) / 2.0;
+                    double unit_conv_avP = 10.0;
 
                     //Pressure force
                     //Monaghan (1992)
@@ -198,19 +200,19 @@ void Node::calcSPHForce(Particle* p)
                     //Artificial viscosity
                     //Monaghan & Gingold (1983)
                     double MU_ij = 0.0;
-                    double alpha = 1;
-                    double beta = 2;
+                    double alpha = 0.5 * unit_conv_avP;
+                    double beta = 0.10 * unit_conv_avP;
                     double eta = 0.01;
                     double mu_ij = h_ij * v_ij.dot(d) / (r * r + eta * (h_ij * h_ij));
                     if(v_ij.dot(d) < 0)
                     {
                         MU_ij = -alpha * c_ij * mu_ij + beta * (mu_ij * mu_ij);
                     }
-                    acc += -childParticles[i]->mass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
+                    acc += - childParticles[i]->mass * MU_ij * kernel::gradientCubicSplineKernel(d, h_ij);
 
                     //Internal energy
                     MU_ij = 0;
-                    p->dUdt += (1.0 / 2.0) * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
+                    p->dUdt += (1.0 / 2.0) * childParticles[i]->mass * (P_i / (rho_i * rho_i) + P_j / (rho_j * rho_j)) * Units::c_conv * v_ij.dot(kernel::gradientCubicSplineKernel(d, h_i));
                     //std::cout << radius << "  ,  " << p->dUdt << " , " << childParticles.size() << std::endl;
 
                     if(std::isnan(acc.x) || std::isnan(acc.y) || std::isnan(acc.z)) acc = vec3(0,0,0);

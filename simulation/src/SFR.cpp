@@ -31,7 +31,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     double soundspeed = sqrt(Constants::GAMMA*(particle->P / particle->rho));
     double soundcrossingTime = particle->h / soundspeed;
     double jeansCrit = 1.0 / sqrt(4*Constants::PI*Constants::G*particle->rho);
-    //if (soundcrossingTime < jeansCrit) return;
+    if (soundcrossingTime < jeansCrit) return;
 
     double c = sim->c_sfr;
     double tdyn = sqrt(3 * M_PI / (32 * Constants::G * particle->rho));
@@ -41,6 +41,7 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
     
     static std::uniform_real_distribution<double> dist(0.0, 1.0);
     double r = dist(rng);
+    bool partial_SFR_conversion = false;
     
     if (r < p_star)
     {
@@ -59,6 +60,65 @@ void SFR::sfrRoutine(Particle* particle, Simulation* sim, double& newStarMass)
             else
             {
                 particle->SN_pending = false;
+            }
+        }
+    }
+
+    // partial star conversion
+    if(partial_SFR_conversion)
+    {
+        if (r < p_star)
+        {
+            double efficiency = 0.3;
+            double starMass = efficiency * particle->mass;
+            newStarMass += starMass;
+
+            Particle* newStar = new Particle();
+            newStar->mass = starMass;
+            newStar->position = particle->position;
+            newStar->velocity = particle->velocity;
+            newStar->type = 1;
+            newStar->galaxyPart = particle->galaxyPart;
+            newStar->id = sim->particles.size();
+
+            if(sim->SNFeedbackEnabled)
+            {
+                double p_supernova = 0.12;
+                double r_sn = dist(rng);
+                if (r_sn < p_supernova)
+                {
+                    newStar->SN_pending = true;
+                    newStar->h = particle->h;
+                    newStar->rho = particle->rho;
+                    newStar->P = particle->P;
+                    newStar->T = particle->T;
+                    newStar->U = particle->U;
+                    newStar->mu = particle->mu;
+                }
+                else
+                {
+                    newStar->SN_pending = false;
+                }
+            }
+            
+            #pragma omp critical
+            {
+                sim->particles.push_back(newStar);
+            }
+            
+            particle->mass -= starMass;
+            const double minGasMass = 1e30;
+            if (particle->mass < minGasMass)
+            {
+                auto it = std::find(sim->particles.begin(), sim->particles.end(), particle);
+                if (it != sim->particles.end()) 
+                {
+                    delete *it;
+                    #pragma omp critical
+                    {
+                        sim->particles.erase(it);
+                    }
+                }
             }
         }
     }
